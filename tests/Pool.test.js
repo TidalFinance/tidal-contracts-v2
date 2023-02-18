@@ -35,16 +35,32 @@ const decToHex = (x, decimal=18) => {
 
 contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
     beforeEach(async () => {
-        this.USDC = await MockERC20.new("USDC", "USDC", decToHex(1000000), {from: admin});
-        this.Tidal = await MockERC20.new("Tidal", "TIDAL", decToHex(1000000), {from: admin});
+        this.USDC = await MockERC20.new(
+            "USDC", "USDC", decToHex(502000), {from: admin});
+        this.Tidal = await MockERC20.new(
+            "Tidal", "TIDAL", decToHex(1000000), {from: admin});
         await this.USDC.transfer(seller0, decToHex(200000), {from: admin});
         await this.USDC.transfer(seller1, decToHex(300000), {from: admin});
         await this.USDC.transfer(buyer0, decToHex(1000), {from: admin});
         await this.USDC.transfer(buyer1, decToHex(1000), {from: admin});
 
-        this.Pool = await Pool.new(this.USDC.address, this.Tidal.address, true, {from: admin});
+        this.Pool = await Pool.new(
+            this.USDC.address, this.Tidal.address, true, {from: admin});
         await this.Pool.setAdmin(admin, {from: admin});
-        await this.Pool.setPool(10, 1, 10, 0, 0, 0, 1, "", "", {from: admin});
+
+        await this.Pool.setPool(
+            10,
+            1,
+            10,
+            20000, // 2% withdrawFee
+            0,
+            0,
+            0,
+            1,
+            "",
+            "",
+            {from: admin}
+        );
 
         // Adds policy.
         await this.Pool.addPolicy(500000, 200, "Metamask", "Bla bla");
@@ -55,13 +71,22 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         const currentWeek = +(await this.Pool.getCurrentWeek()).valueOf();
 
         // In week0, seller0 deposits 100,000 USDC.
-        await this.USDC.approve(this.Pool.address, decToHex(100000), {from: seller0});
+        await this.USDC.approve(
+            this.Pool.address, decToHex(100000), {from: seller0});
         await this.Pool.deposit(decToHex(100000), {from: seller0});
 
-        // Buyer0 buys 20,000 USDC worth of Metamask policy, from Sunday, for 3 weeks.
+        // Buyer0 buys 20,000 USDC worth of Metamask policy, from Sunday,
+        // for 3 weeks.
         // It should costs 4 USDC per week, totally 12 USDC for 3 weeks.
-        await this.USDC.approve(this.Pool.address, decToHex(12), {from: buyer0});
-        await this.Pool.buy(0, decToHex(20000), currentWeek + 1, currentWeek + 4, {from: buyer0});
+        await this.USDC.approve(
+            this.Pool.address, decToHex(12), {from: buyer0});
+        await this.Pool.buy(
+            0,
+            decToHex(20000),
+            currentWeek + 1,
+            currentWeek + 4,
+            {from: buyer0}
+        );
 
         // *** Move to week1.
         await this.Pool.setTimeExtra(3600 * 24 * 7);
@@ -150,8 +175,15 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         // Calling withdrawReady, by anyone.
         await this.Pool.withdrawReady(seller0, 0, {from: anyone});
 
-        // Seller0 should have 130,000 USDC in his wallet now.
-        const seller0BalanceAtWeek13 = +(await this.USDC.balanceOf(seller0)).valueOf();
-        assert.equal(seller0BalanceAtWeek13, 130000e18);
+        // Seller0 should have 100,000 + 30,000 * 98% = 129,400 USDC in
+        // his wallet now.
+        const seller0BalanceAtWeek13 =
+            +(await this.USDC.balanceOf(seller0)).valueOf();
+        assert.equal(seller0BalanceAtWeek13, 129400e18);
+
+        // Admin receives 30,000 * 2% = 600 USDC.
+        const adminBalanceAtWeek13 =
+            +(await this.USDC.balanceOf(admin)).valueOf();
+        assert.equal(adminBalanceAtWeek13, 600e18);
     });
 });

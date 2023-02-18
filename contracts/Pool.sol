@@ -19,6 +19,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
  
     uint256 constant AMOUNT_PER_SHARE = 1e14;
     uint256 constant VOTE_EXPIRATION = 3 days;
+    uint256 constant RATIO_BASE = 1e6;
 
     bool public isTest;
 
@@ -28,9 +29,19 @@ contract Pool is IPool, NonReentrancy, Ownable {
     uint256 public withdrawWaitWeeks1;
     uint256 public withdrawWaitWeeks2;
     uint256 public policyWeeks;
+
+    // withdrawFee is a percentage.
     uint256 public withdrawFee;
+
+    // claimFee is a flat amount.
     uint256 public claimFee;
-    uint256 public managementFee;
+
+    // managementFee1 is a percentage and charged as shares.
+    uint256 public managementFee1;
+
+    // managementFee2 is a percentage and charged as tokens.
+    uint256 public managementFee2;
+
     bool public enabled;
     string public name;
     string public terms;
@@ -245,7 +256,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         uint256 policyWeeks_,
         uint256 withdrawFee_,
         uint256 claimFee_,
-        uint256 managementFee_,
+        uint256 managementFee1_,
+        uint256 managementFee2_,
         bool enabled_,
         string memory name_,
         string memory terms_
@@ -255,7 +267,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         policyWeeks_ = policyWeeks;
         withdrawFee_ = withdrawFee;
         claimFee_ = claimFee;
-        managementFee_ = managementFee;
+        managementFee1_ = managementFee1;
+        managementFee2_ = managementFee2;
         enabled_ = enabled;
         name_ = name;
         terms_ = terms;
@@ -267,7 +280,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         uint256 policyWeeks_,
         uint256 withdrawFee_,
         uint256 claimFee_,
-        uint256 managementFee_,
+        uint256 managementFee1_,
+        uint256 managementFee2_,
         bool enabled_,
         string calldata name_,
         string calldata terms_
@@ -277,7 +291,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         policyWeeks = policyWeeks_;
         withdrawFee = withdrawFee_;
         claimFee = claimFee_;
-        managementFee = managementFee_;
+        managementFee1 = managementFee1_;
+        managementFee2 = managementFee2_;
         enabled = enabled_;
         name = name_;
         terms = terms_;
@@ -338,7 +353,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
             }
 
             Policy storage policy = policyArray[policyIndex_];
-            return amount.mul(1e6).div(policy.collateralRatio).sub(coveredMap[policyIndex_][w_]);
+            return amount.mul(RATIO_BASE).div(policy.collateralRatio).sub(coveredMap[policyIndex_][w_]);
         }
     }
 
@@ -379,12 +394,12 @@ contract Pool is IPool, NonReentrancy, Ownable {
         require(fromWeek_ > getCurrentWeek(), "Buy next week");
 
         Policy storage policy = policyArray[policyIndex_];
-        uint256 premium = amount_.mul(policy.weeklyPremium).div(1e6);
+        uint256 premium = amount_.mul(policy.weeklyPremium).div(RATIO_BASE);
         uint256 allPremium = premium.mul(toWeek_.sub(fromWeek_));
 
         uint256 maximumToCover = poolInfo.amountPerShare.mul(
             poolInfo.totalShare).sub(poolInfo.pendingWithdrawAmount).mul(
-                1e6).div(policy.collateralRatio);
+                RATIO_BASE).div(policy.collateralRatio);
 
         for (uint256 w = fromWeek_; w < toWeek_; ++w) {
             incomeMap[policyIndex_][w] =
@@ -439,7 +454,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
 
         uint256 maximumToCover = poolInfo.amountPerShare.mul(
             poolInfo.totalShare).sub(poolInfo.pendingWithdrawAmount).mul(
-                1e6).div(policy.collateralRatio);
+                RATIO_BASE).div(policy.collateralRatio);
 
         uint256 allCovered = coveredMap[policyIndex_][week];
         if (allCovered > maximumToCover) {
@@ -569,8 +584,10 @@ contract Pool is IPool, NonReentrancy, Ownable {
                 poolInfo.totalShare).sub(request.amount).div(
                     poolInfo.amountPerShare);
 
-            IERC20(baseToken).safeTransfer(
-                who_, request.amount);
+            // A withdrawFee goes to admin
+            uint256 fee = request.amount.mul(withdrawFee).div(RATIO_BASE);
+            IERC20(baseToken).safeTransfer(who_, request.amount.sub(fee));
+            IERC20(baseToken).safeTransfer(admin, fee);
 
             request.succeeded = true;
         } else {
