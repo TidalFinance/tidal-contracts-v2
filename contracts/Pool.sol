@@ -406,12 +406,12 @@ contract Pool is IPool, NonReentrancy, Ownable {
             _msgSender(), address(this), allPremium);
 
         emit Buy(
-			_msgSender(),
-		    policyIndex_,
-		    amount_,
-		    fromWeek_,
-		    toWeek_
-	    );
+            _msgSender(),
+            policyIndex_,
+            amount_,
+            fromWeek_,
+            toWeek_
+        );
     }
 
     function refund(uint256 policyIndex_, uint256 week_, address who_) external {
@@ -478,7 +478,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
             userInfo.share = userInfo.share.add(shareToAdd);
         }
 
-	emit Deposit(_msgSender(), amount_);
+        emit Deposit(_msgSender(), amount_);
     }
 
     function getUserAvailableWithdrawAmount(
@@ -558,7 +558,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
         uint256 unlockTime = getUnlockTime(request.time, waitWeeks);
         require(getNow() > unlockTime, "Not ready yet");
 
-        UserInfo storage userInfo = userInfoMap[_msgSender()];
+        UserInfo storage userInfo = userInfoMap[who_];
         if (poolInfo.amountPerShare.mul(userInfo.share) >= request.amount) {
             _updateUserTidal(who_);
 
