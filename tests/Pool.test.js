@@ -33,7 +33,7 @@ const decToHex = (x, decimal=18) => {
     return '0x' + hex.join('');
 }
 
-contract('Pool', ([admin, seller0, seller1, buyer0, buyer1]) => {
+contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
     beforeEach(async () => {
         this.USDC = await MockERC20.new("USDC", "USDC", decToHex(1000000), {from: admin});
         this.Tidal = await MockERC20.new("Tidal", "TIDAL", decToHex(1000000), {from: admin});
@@ -52,7 +52,7 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1]) => {
     });
 
     it('should work', async () => {
-        const currentWeek = (await this.Pool.getCurrentWeek()).valueOf();
+        const currentWeek = +(await this.Pool.getCurrentWeek()).valueOf();
 
         // In week0, seller0 deposits 100,000 USDC.
         await this.USDC.approve(this.Pool.address, decToHex(100000), {from: seller0});
@@ -63,13 +63,95 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1]) => {
         await this.USDC.approve(this.Pool.address, decToHex(12), {from: buyer0});
         await this.Pool.buy(0, decToHex(20000), currentWeek + 1, currentWeek + 4, {from: buyer0});
 
-        // Move to week1.
+        // *** Move to week1.
         await this.Pool.setTimeExtra(3600 * 24 * 7);
         await this.Pool.addPremium(0);
         await this.Pool.addPremium(1);
 
-        // So far there should be no premium paid yet.
+        // So far there should be 4 premium.
         const baseAtWeek1 = await this.Pool.getUserBaseAmount(seller0);
-        assert.equal(baseAtWeek1.valueOf(), 100000e18);
+        assert.equal(baseAtWeek1.valueOf(), 100004e18);
+
+        // Capacity should be 100,004 / 50% - 20,000 = 180,008.
+        const capacityAtWeek1 = await this.Pool.getCurrentAvailableCapacity(0);
+        assert.equal(capacityAtWeek1.valueOf(), 180008e18);
+
+        // *** Move to week2.
+        await this.Pool.setTimeExtra(3600 * 24 * 14);
+        await this.Pool.addPremium(0);
+        await this.Pool.addPremium(1);
+
+        // seller0 now withdraws 30,000 USDC.
+        await this.Pool.withdraw(decToHex(30000), {from: seller0});
+
+        // So far there should be 8 premium.
+        const baseAtWeek2 = await this.Pool.getUserBaseAmount(seller0);
+        assert.equal(baseAtWeek2.valueOf(), 100008e18);
+
+        // Capacity should be 100,008 / 50% - 20,000 = 180,016.
+        const capacityAtWeek2 = await this.Pool.getCurrentAvailableCapacity(0);
+        assert.equal(capacityAtWeek2.valueOf(), 180016e18);
+
+        // *** Move to week5.
+        for (let i = 3; i <= 5; ++i) {
+            await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
+            await this.Pool.addPremium(0);
+            await this.Pool.addPremium(1);
+        }
+
+        // So far there should be 12 premium.
+        const baseAtWeek5 = await this.Pool.getUserBaseAmount(seller0);
+        assert.equal(baseAtWeek5.valueOf(), 100012e18);
+
+        // Capacity should be 100,012 / 50% = 200,024.
+        const capacityAtWeek5 = await this.Pool.getCurrentAvailableCapacity(0);
+        assert.equal(capacityAtWeek5.valueOf(), 200024e18);
+
+        // *** Move to week11.
+        for (let i = 6; i <= 11; ++i) {
+            await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
+            await this.Pool.addPremium(0);
+            await this.Pool.addPremium(1);
+        }
+
+        // Calling withdrawPending, by anyone, should revert.
+        await expectRevert(
+            this.Pool.withdrawPending(seller0, 0, {from: anyone}),
+            "Not ready yet"
+        );
+
+        // Capacity should be 100,012 / 50% = 200,024.
+        const capacityAtWeek11 = await this.Pool.getCurrentAvailableCapacity(0);
+        assert.equal(capacityAtWeek11.valueOf(), 200024e18);
+
+        // *** Move to week12.
+        await this.Pool.setTimeExtra(3600 * 24 * 7 * 12);
+        await this.Pool.addPremium(0);
+        await this.Pool.addPremium(1);
+
+        // Calling withdrawPending, by anyone.
+        await this.Pool.withdrawPending(seller0, 0, {from: anyone});
+
+        // Calling withdrawReady, by anyone, should revert.
+        await expectRevert(
+            this.Pool.withdrawReady(seller0, 0, {from: anyone}),
+            "Not ready yet"
+        );
+
+        // Capacity should be (100,012 - 30,000) / 50% = 140,024.
+        const capacityAtWeek12 = await this.Pool.getCurrentAvailableCapacity(0);
+        assert.equal(capacityAtWeek12.valueOf(), 140024e18);
+
+        // *** Move to week13.
+        await this.Pool.setTimeExtra(3600 * 24 * 7 * 13);
+        await this.Pool.addPremium(0);
+        await this.Pool.addPremium(1);
+
+        // Calling withdrawReady, by anyone.
+        await this.Pool.withdrawReady(seller0, 0, {from: anyone});
+
+        // Seller0 should have 130,000 USDC in his wallet now.
+        const seller0BalanceAtWeek13 = +(await this.USDC.balanceOf(seller0)).valueOf();
+        assert.equal(seller0BalanceAtWeek13, 130000e18);
     });
 });
