@@ -54,8 +54,8 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
             10,
             20000, // 2% withdrawFee
             0,
-            0,
-            0,
+            50000, // 5% managementFee1
+            30000,  // 3% managementFee2
             1,
             "",
             "",
@@ -65,6 +65,9 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         // Adds policy.
         await this.Pool.addPolicy(500000, 200, "Metamask", "Bla bla");
         await this.Pool.addPolicy(1000000, 300, "Rainbow", "Bla bla");
+
+        // Defines minimum floating-point calculation error.
+        this.MIN_ERROR = 0.0001e18; // 0.0001 USDC
     });
 
     it('should work', async () => {
@@ -93,13 +96,19 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         await this.Pool.addPremium(0);
         await this.Pool.addPremium(1);
 
-        // So far there should be 4 premium.
-        const baseAtWeek1 = await this.Pool.getUserBaseAmount(seller0);
-        assert.equal(baseAtWeek1.valueOf(), 100004e18);
+        // So far there should be 4 USDC premium.
+        // 92% of it, or 3.68 goes to sellers
+        // 5% of it, or 0.2 goes to managementFee1
+        // 3% of it, or 0.12 goes to managementFee2
+        const baseAtWeek1 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(baseAtWeek1 - 100003.68e18) < this.MIN_ERROR);
 
-        // Capacity should be 100,004 / 50% - 20,000 = 180,008.
-        const capacityAtWeek1 = await this.Pool.getCurrentAvailableCapacity(0);
-        assert.equal(capacityAtWeek1.valueOf(), 180008e18);
+        // Capacity should be (100,003.68 + 0.2) / 50% - 20,000 = 180007.76
+        const capacityAtWeek1 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek1 - 180007.76e18) <
+            this.MIN_ERROR);
 
         // *** Move to week2.
         await this.Pool.setTimeExtra(3600 * 24 * 14);
@@ -110,12 +119,18 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         await this.Pool.withdraw(decToHex(30000), {from: seller0});
 
         // So far there should be 8 premium.
-        const baseAtWeek2 = await this.Pool.getUserBaseAmount(seller0);
-        assert.equal(baseAtWeek2.valueOf(), 100008e18);
+        // 92% of it, or 7.36 goes to sellers
+        // 5% of it, or 0.4 goes to managementFee1
+        // 3% of it, or 0.24 goes to managementFee2
+        const baseAtWeek2 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(baseAtWeek2 - 100007.36e18) < this.MIN_ERROR);
 
-        // Capacity should be 100,008 / 50% - 20,000 = 180,016.
-        const capacityAtWeek2 = await this.Pool.getCurrentAvailableCapacity(0);
-        assert.equal(capacityAtWeek2.valueOf(), 180016e18);
+        // Capacity should be (100,007.36 + 0.4) / 50% - 20,000 = 180,015.52
+        const capacityAtWeek2 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek2 - 180015.52e18) <
+            this.MIN_ERROR);
 
         // *** Move to week5.
         for (let i = 3; i <= 5; ++i) {
@@ -125,12 +140,18 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         }
 
         // So far there should be 12 premium.
-        const baseAtWeek5 = await this.Pool.getUserBaseAmount(seller0);
-        assert.equal(baseAtWeek5.valueOf(), 100012e18);
+        // 92% of it, or 11.04 goes to sellers
+        // 5% of it, or 0.6 goes to managementFee1
+        // 3% of it, or 0.36 goes to managementFee2
+        const baseAtWeek5 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(baseAtWeek5 - 100011.04e18) < this.MIN_ERROR);
 
-        // Capacity should be 100,012 / 50% = 200,024.
-        const capacityAtWeek5 = await this.Pool.getCurrentAvailableCapacity(0);
-        assert.equal(capacityAtWeek5.valueOf(), 200024e18);
+        // Capacity should be (100,011.04 + 0.6) / 50% = 200,023.28
+        const capacityAtWeek5 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek5 - 200023.28e18) <
+            this.MIN_ERROR);
 
         // *** Move to week11.
         for (let i = 6; i <= 11; ++i) {
@@ -145,9 +166,11 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
             "Not ready yet"
         );
 
-        // Capacity should be 100,012 / 50% = 200,024.
-        const capacityAtWeek11 = await this.Pool.getCurrentAvailableCapacity(0);
-        assert.equal(capacityAtWeek11.valueOf(), 200024e18);
+        // Capacity should be (100,011.04 + 0.6) / 50% = 200,023.28
+        const capacityAtWeek11 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek11 - 200023.28e18) <
+            this.MIN_ERROR);
 
         // *** Move to week12.
         await this.Pool.setTimeExtra(3600 * 24 * 7 * 12);
@@ -163,9 +186,11 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
             "Not ready yet"
         );
 
-        // Capacity should be (100,012 - 30,000) / 50% = 140,024.
-        const capacityAtWeek12 = await this.Pool.getCurrentAvailableCapacity(0);
-        assert.equal(capacityAtWeek12.valueOf(), 140024e18);
+        // Capacity should be (100,011.04 + 0.6 - 30,000) / 50% = 140,023.28
+        const capacityAtWeek12 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek12 - 140023.28e18) <
+            this.MIN_ERROR);
 
         // *** Move to week13.
         await this.Pool.setTimeExtra(3600 * 24 * 7 * 13);
@@ -179,11 +204,13 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         // his wallet now.
         const seller0BalanceAtWeek13 =
             +(await this.USDC.balanceOf(seller0)).valueOf();
-        assert.equal(seller0BalanceAtWeek13, 129400e18);
+        assert.isTrue(Math.abs(seller0BalanceAtWeek13 - 129400e18) <
+            this.MIN_ERROR);
 
-        // Admin receives 30,000 * 2% = 600 USDC.
+        // Admin receives 0.36 + 30,000 * 2% = 600.36 USDC.
         const adminBalanceAtWeek13 =
             +(await this.USDC.balanceOf(admin)).valueOf();
-        assert.equal(adminBalanceAtWeek13, 600e18);
+        assert.isTrue(Math.abs(adminBalanceAtWeek13 - 600.36e18) <
+            this.MIN_ERROR);
     });
 });

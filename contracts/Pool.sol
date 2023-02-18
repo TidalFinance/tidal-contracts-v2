@@ -17,7 +17,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
  
-    uint256 constant AMOUNT_PER_SHARE = 1e14;
+    uint256 constant SHARE_UNITS = 1e18;
+    uint256 constant AMOUNT_PER_SHARE = 1e24;
     uint256 constant VOTE_EXPIRATION = 3 days;
     uint256 constant RATIO_BASE = 1e6;
 
@@ -141,7 +142,9 @@ contract Pool is IPool, NonReentrancy, Ownable {
         }
 
         uint256 leftSideOffset = claimRequestArray.length.sub(offset_);
-        ClaimRequest[] memory result = new ClaimRequest[](leftSideOffset < limit_ ? leftSideOffset : limit_);
+        ClaimRequest[] memory result =
+            new ClaimRequest[](
+                leftSideOffset < limit_ ? leftSideOffset : limit_);
 
         uint256 i = 0;
         while (i < limit_ && leftSideOffset > 0) {
@@ -180,7 +183,10 @@ contract Pool is IPool, NonReentrancy, Ownable {
         return now + timeExtra;
     }
 
-    function getUnlockTime(uint256 time_, uint256 waitWeeks_) public view returns(uint256) {
+    function getUnlockTime(
+        uint256 time_,
+        uint256 waitWeeks_
+    ) public view returns(uint256) {
         require(time_ + offset > (7 days), "Time not large enough");
         return ((time_ + offset) / (7 days) + waitWeeks_) * (7 days) - offset;
     }
@@ -235,7 +241,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
     }
 
     function removeFromCommittee(address who_) external onlyOwner {
-        require(committeeIndexPlusOne[who_] > 0, "Non-existing committee member");
+        require(committeeIndexPlusOne[who_] > 0,
+                "Non-existing committee member");
         if (committeeIndexPlusOne[who_] != committeeArray.length) {
             address lastOne = committeeArray[committeeArray.length.sub(1)];
             committeeIndexPlusOne[lastOne] = committeeIndexPlusOne[who_];
@@ -332,7 +339,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
 
     function getCollateralAmount() external view returns(uint256) {
         return poolInfo.amountPerShare.mul(
-            poolInfo.totalShare).sub(poolInfo.pendingWithdrawAmount);
+            poolInfo.totalShare).div(SHARE_UNITS).sub(
+                poolInfo.pendingWithdrawAmount);
     }
 
     function getAvailableCapacity(
@@ -346,14 +354,19 @@ contract Pool is IPool, NonReentrancy, Ownable {
         if (w_ >= currentWeek.add(withdrawWaitWeeks1) || w_ < currentWeek) {
             return 0;
         } else {
-            amount = poolInfo.amountPerShare.mul(poolInfo.totalShare).sub(poolInfo.pendingWithdrawAmount);
+            amount = poolInfo.amountPerShare.mul(
+                poolInfo.totalShare).div(SHARE_UNITS).sub(
+                    poolInfo.pendingWithdrawAmount);
 
-            for (w = currentWeek.sub(withdrawWaitWeeks1); w < w_.sub(withdrawWaitWeeks1); ++w) {
+            for (w = currentWeek.sub(withdrawWaitWeeks1);
+                 w < w_.sub(withdrawWaitWeeks1);
+                 ++w) {
                 amount = amount.sub(poolWithdrawMap[w]);
             }
 
             Policy storage policy = policyArray[policyIndex_];
-            return amount.mul(RATIO_BASE).div(policy.collateralRatio).sub(coveredMap[policyIndex_][w_]);
+            return amount.mul(RATIO_BASE).div(policy.collateralRatio).sub(
+                coveredMap[policyIndex_][w_]);
         }
     }
 
@@ -377,7 +390,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
 
     function getUserBaseAmount(address who_) external view returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
-        return poolInfo.amountPerShare.mul(userInfo.share);
+        return poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS);
     }
 
     function buy(
@@ -398,8 +411,9 @@ contract Pool is IPool, NonReentrancy, Ownable {
         uint256 allPremium = premium.mul(toWeek_.sub(fromWeek_));
 
         uint256 maximumToCover = poolInfo.amountPerShare.mul(
-            poolInfo.totalShare).sub(poolInfo.pendingWithdrawAmount).mul(
-                RATIO_BASE).div(policy.collateralRatio);
+            poolInfo.totalShare).div(SHARE_UNITS).sub(
+                poolInfo.pendingWithdrawAmount).mul(
+                    RATIO_BASE).div(policy.collateralRatio);
 
         for (uint256 w = fromWeek_; w < toWeek_; ++w) {
             incomeMap[policyIndex_][w] =
@@ -429,7 +443,11 @@ contract Pool is IPool, NonReentrancy, Ownable {
         );
     }
 
-    function refund(uint256 policyIndex_, uint256 week_, address who_) external {
+    function refund(
+        uint256 policyIndex_,
+        uint256 week_,
+        address who_
+    ) external {
         Coverage storage coverage = coverageMap[policyIndex_][week_][who_];
 
         require(!coverage.refunded, "Already refunded");
@@ -453,8 +471,9 @@ contract Pool is IPool, NonReentrancy, Ownable {
         Policy storage policy = policyArray[policyIndex_];
 
         uint256 maximumToCover = poolInfo.amountPerShare.mul(
-            poolInfo.totalShare).sub(poolInfo.pendingWithdrawAmount).mul(
-                RATIO_BASE).div(policy.collateralRatio);
+            poolInfo.totalShare).div(SHARE_UNITS).sub(
+                poolInfo.pendingWithdrawAmount).mul(
+                    RATIO_BASE).div(policy.collateralRatio);
 
         uint256 allCovered = coveredMap[policyIndex_][week];
         if (allCovered > maximumToCover) {
@@ -464,8 +483,24 @@ contract Pool is IPool, NonReentrancy, Ownable {
                 refundMap[policyIndex_][week]);
         }
 
+        // Deducts management fee.
+        uint256 totalIncome = incomeMap[policyIndex_][week];
+        uint256 fee1 = totalIncome.mul(managementFee1).div(RATIO_BASE);
+        uint256 fee2 = totalIncome.mul(managementFee2).div(RATIO_BASE);
+        uint256 realIncome = totalIncome.sub(fee1).sub(fee2);
+
         poolInfo.amountPerShare = poolInfo.amountPerShare.add(
-            incomeMap[policyIndex_][week].div(poolInfo.totalShare));
+            realIncome.mul(SHARE_UNITS).div(poolInfo.totalShare));
+
+        // Distributes fee1.
+        UserInfo storage adminInfo = userInfoMap[admin];
+        uint256 fee1Share = fee1.mul(SHARE_UNITS).div(poolInfo.amountPerShare);
+        adminInfo.share = adminInfo.share.add(fee1Share);
+        poolInfo.totalShare = poolInfo.totalShare.add(fee1Share);
+
+        // Distributes fee2.
+        IERC20(baseToken).safeTransfer(admin, fee2);
+
         incomeMap[policyIndex_][week] = 0;
     }
 
@@ -474,7 +509,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
     ) external {
         require(enabled && !locked, "Not enabled or unlocked");
 
-        require(amount_ >= AMOUNT_PER_SHARE * 10000, "Less than minimum");
+        require(amount_ >= AMOUNT_PER_SHARE / 1000000, "Less than minimum");
 
         IERC20(baseToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
@@ -485,10 +520,11 @@ contract Pool is IPool, NonReentrancy, Ownable {
 
         if (poolInfo.totalShare == 0) {          
             poolInfo.amountPerShare = AMOUNT_PER_SHARE;
-            poolInfo.totalShare = amount_.div(AMOUNT_PER_SHARE);
+            poolInfo.totalShare = amount_.mul(SHARE_UNITS).div(AMOUNT_PER_SHARE);
             userInfo.share = poolInfo.totalShare;
         } else {
-            uint256 shareToAdd = amount_.div(poolInfo.amountPerShare);
+            uint256 shareToAdd =
+                amount_.mul(SHARE_UNITS).div(poolInfo.amountPerShare);
             poolInfo.totalShare = poolInfo.totalShare.add(shareToAdd);
             userInfo.share = userInfo.share.add(shareToAdd);
         }
@@ -500,7 +536,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         address who_
     ) external view returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
-        uint256 userBaseAmount = poolInfo.amountPerShare.mul(userInfo.share);
+        uint256 userBaseAmount =
+            poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS);
         return userBaseAmount.sub(
                 userInfo.pendingWithdrawAmount);
     }
@@ -511,7 +548,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         require(enabled && !locked, "Not enabled or unlocked");
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
-        uint256 userBaseAmount = poolInfo.amountPerShare.mul(userInfo.share);
+        uint256 userBaseAmount =
+            poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS);
         require(userBaseAmount >=
             userInfo.pendingWithdrawAmount.add(amount_), "Not enough");
 
@@ -574,14 +612,15 @@ contract Pool is IPool, NonReentrancy, Ownable {
         require(getNow() > unlockTime, "Not ready yet");
 
         UserInfo storage userInfo = userInfoMap[who_];
-        if (poolInfo.amountPerShare.mul(userInfo.share) >= request.amount) {
+        if (poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS) >=
+                request.amount) {
             _updateUserTidal(who_);
 
             userInfo.share = poolInfo.amountPerShare.mul(
-                userInfo.share).sub(request.amount).div(
+                userInfo.share).sub(request.amount.mul(SHARE_UNITS)).div(
                     poolInfo.amountPerShare);
             poolInfo.totalShare = poolInfo.amountPerShare.mul(
-                poolInfo.totalShare).sub(request.amount).div(
+                poolInfo.totalShare).sub(request.amount.mul(SHARE_UNITS)).div(
                     poolInfo.amountPerShare);
 
             // A withdrawFee goes to admin
@@ -615,12 +654,13 @@ contract Pool is IPool, NonReentrancy, Ownable {
             _msgSender(), address(this), amount_);
 
         poolInfo.accTidalPerShare = poolInfo.accTidalPerShare.add(
-            amount_).div(poolInfo.totalShare);
+            amount_.mul(SHARE_UNITS)).div(poolInfo.totalShare);
     }
 
     function _updateUserTidal(address who_) private {
         UserInfo storage userInfo = userInfoMap[who_];
-        uint256 accAmount = poolInfo.accTidalPerShare.add(userInfo.share);
+        uint256 accAmount = poolInfo.accTidalPerShare.add(
+            userInfo.share).div(SHARE_UNITS);
         userInfo.tidalPending = userInfo.tidalPending.add(
             accAmount.sub(userInfo.tidalDebt));
         userInfo.tidalDebt = accAmount;
@@ -629,7 +669,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
     function getUserTidalAmount(address who_) external view returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
         return poolInfo.accTidalPerShare.mul(
-            userInfo.share).add(userInfo.tidalPending).sub(userInfo.tidalDebt);
+            userInfo.share).div(SHARE_UNITS).add(
+                userInfo.tidalPending).sub(userInfo.tidalDebt);
     }
 
     function withdrawTidal() external {
@@ -704,6 +745,6 @@ contract Pool is IPool, NonReentrancy, Ownable {
         IERC20(baseToken).safeTransfer(cr.receipient, cr.amount);
 
         poolInfo.amountPerShare = poolInfo.amountPerShare.sub(
-            cr.amount.div(poolInfo.totalShare));
+            cr.amount.mul(SHARE_UNITS).div(poolInfo.totalShare));
     }
 }
