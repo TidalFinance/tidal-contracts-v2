@@ -33,7 +33,10 @@ const decToHex = (x, decimal=18) => {
     return '0x' + hex.join('');
 }
 
-contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
+contract('Pool', ([
+        admin, seller0, seller1, buyer0, buyer1, anyone,
+        treasury, voter0, voter1, voter2]) => {
+
     beforeEach(async () => {
         this.USDC = await MockERC20.new(
             "USDC", "USDC", decToHex(502000), {from: admin});
@@ -47,13 +50,15 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         this.Pool = await Pool.new(
             this.USDC.address, this.Tidal.address, true, {from: admin});
         await this.Pool.setAdmin(admin, {from: admin});
+        await this.Pool.addToCommittee(voter0, {from: admin});
+        await this.Pool.addToCommittee(voter1, {from: admin});
+        await this.Pool.addToCommittee(voter2, {from: admin});
 
         await this.Pool.setPool(
             10,
             1,
             10,
             20000, // 2% withdrawFee
-            0,
             50000, // 5% managementFee1
             30000,  // 3% managementFee2
             1,
@@ -80,7 +85,7 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
 
         // Buyer0 buys 20,000 USDC worth of Metamask policy, from Sunday,
         // for 3 weeks.
-        // It should costs 4 USDC per week, totally 12 USDC for 3 weeks.
+        // It should cost 4 USDC per week, totally 12 USDC for 3 weeks.
         await this.USDC.approve(
             this.Pool.address, decToHex(12), {from: buyer0});
         await this.Pool.buy(
@@ -211,6 +216,77 @@ contract('Pool', ([admin, seller0, seller1, buyer0, buyer1, anyone]) => {
         const adminBalanceAtWeek13 =
             +(await this.USDC.balanceOf(admin)).valueOf();
         assert.isTrue(Math.abs(adminBalanceAtWeek13 - 600.36e18) <
+            this.MIN_ERROR);
+    });
+
+    it('claim and refund', async () => {
+        const currentWeek = +(await this.Pool.getCurrentWeek()).valueOf();
+
+        // In week0, seller0 deposits 100,000 USDC.
+        await this.USDC.approve(
+            this.Pool.address, decToHex(100000), {from: seller0});
+        await this.Pool.deposit(decToHex(100000), {from: seller0});
+
+        // Buyer0 buys 80,000 USDC worth of Metamask policy, from Sunday,
+        // for 3 weeks.
+        // It should cost 16 USDC per week, totally 48 USDC for 3 weeks.
+        await this.USDC.approve(
+            this.Pool.address, decToHex(48), {from: buyer0});
+        await this.Pool.buy(
+            0,
+            decToHex(80000),
+            currentWeek + 1,
+            currentWeek + 4,
+            {from: buyer0}
+        );
+
+        // *** Move forward for two weeks, to week2.
+        for (let i = 1; i <= 2; ++i) {
+            await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
+            await this.Pool.addPremium(0);
+            await this.Pool.addPremium(1);
+        }
+
+        await this.Pool.setTimeExtra(3600 * 24 * (7 * 2 + 6));
+
+        // A hack happens on the 6th day of week2.
+        // Here we wanna test the case that claim and execution are in
+        // different weeks.
+        // Assume that there are 30,000 loss.
+        // Admin claims (currently only admin can claim) to pay to treasury.
+        await this.Pool.claim(0, decToHex(30000), treasury, {from: admin});
+
+        const claimRequestLength =
+            +(await this.Pool.getClaimRequestLength({from: anyone})).valueOf();
+        assert.equal(claimRequestLength, 1);
+
+        // Without voting, execution should revert.
+        await expectRevert(
+            this.Pool.execute(0, {from: anyone}),
+            "Not enough votes"
+        );
+
+        // Move forward one more day to week3.
+        await this.Pool.setTimeExtra(3600 * 24 * 7 * 3);
+        await this.Pool.addPremium(0);
+        await this.Pool.addPremium(1);
+
+        // Now vote and execute.
+        // Two out of three voters support the claim.
+        await this.Pool.vote(0, 1, {from: voter0});
+        await this.Pool.vote(0, 1, {from: voter1});
+        await this.Pool.execute(0, {from: anyone});
+
+        // Executing again will revert.
+        await expectRevert(
+            this.Pool.execute(0, {from: anyone}),
+            "Already executed"
+        );
+
+        // Treasury receives 30,000 USDC.
+        const treaturyBalance =
+            +(await this.USDC.balanceOf(treasury)).valueOf();
+        assert.isTrue(Math.abs(treaturyBalance - 30000e18) <
             this.MIN_ERROR);
     });
 });

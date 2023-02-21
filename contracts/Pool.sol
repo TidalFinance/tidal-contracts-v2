@@ -34,9 +34,6 @@ contract Pool is IPool, NonReentrancy, Ownable {
     // withdrawFee is a percentage.
     uint256 public withdrawFee;
 
-    // claimFee is a flat amount.
-    uint256 public claimFee;
-
     // managementFee1 is a percentage and charged as shares.
     uint256 public managementFee1;
 
@@ -266,7 +263,6 @@ contract Pool is IPool, NonReentrancy, Ownable {
         uint256 withdrawWaitWeeks2_,
         uint256 policyWeeks_,
         uint256 withdrawFee_,
-        uint256 claimFee_,
         uint256 managementFee1_,
         uint256 managementFee2_,
         bool enabled_,
@@ -277,7 +273,6 @@ contract Pool is IPool, NonReentrancy, Ownable {
         withdrawWaitWeeks2_ = withdrawWaitWeeks2;
         policyWeeks_ = policyWeeks;
         withdrawFee_ = withdrawFee;
-        claimFee_ = claimFee;
         managementFee1_ = managementFee1;
         managementFee2_ = managementFee2;
         enabled_ = enabled;
@@ -290,7 +285,6 @@ contract Pool is IPool, NonReentrancy, Ownable {
         uint256 withdrawWaitWeeks2_,
         uint256 policyWeeks_,
         uint256 withdrawFee_,
-        uint256 claimFee_,
         uint256 managementFee1_,
         uint256 managementFee2_,
         bool enabled_,
@@ -301,7 +295,6 @@ contract Pool is IPool, NonReentrancy, Ownable {
         withdrawWaitWeeks2 = withdrawWaitWeeks2_;
         policyWeeks = policyWeeks_;
         withdrawFee = withdrawFee_;
-        claimFee = claimFee_;
         managementFee1 = managementFee1_;
         managementFee2 = managementFee2_;
         enabled = enabled_;
@@ -744,6 +737,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         require(cr.vote >= committeeThreshold, "Not enough votes");
         require(getNow() < cr.time.add(VOTE_EXPIRATION),
                 "Already expired");
+        require(!cr.executed, "Already executed");
+
         cr.executed = true;
 
         IERC20(baseToken).safeTransfer(cr.receipient, cr.amount);
