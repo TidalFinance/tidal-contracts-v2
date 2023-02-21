@@ -183,6 +183,10 @@ contract Pool is IPool, NonReentrancy, Ownable {
         return now + timeExtra;
     }
 
+    function getWeekFromTime(uint256 time_) public view returns(uint256) {
+        return (time_ + offset) / (7 days);
+    }
+
     function getUnlockTime(
         uint256 time_,
         uint256 waitWeeks_
@@ -588,7 +592,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
         poolInfo.pendingWithdrawAmount = poolInfo.pendingWithdrawAmount.add(
             request.amount);
 
-        uint256 week = request.time.div(1 weeks);
+        uint256 week = getWeekFromTime(request.time);
         poolWithdrawMap[week] = poolWithdrawMap[week].sub(request.amount);
 
         request.pending = true;
