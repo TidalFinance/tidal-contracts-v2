@@ -210,6 +210,13 @@ contract Pool is IPool, NonReentrancy, Ownable {
         uint256 amount_
     );
 
+    event Refund(
+        uint256 indexed policyIndex_,
+        uint256 indexed week_,
+        address indexed who_,
+        uint256 amount_
+    );
+
     constructor(address baseToken_, address tidalToken_, bool isTest_) public {
         baseToken = baseToken_;
         tidalToken = tidalToken_;
@@ -457,6 +464,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         coverage.refunded = true;
 
         IERC20(baseToken).safeTransfer(who_, amountToRefund);
+
+        emit Refund(policyIndex_, week_, who_, amountToRefund);
     }
 
     // Anyone just call this function once per week for every policy.
@@ -473,6 +482,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
                     RATIO_BASE).div(policy.collateralRatio);
 
         uint256 allCovered = coveredMap[policyIndex_][week];
+
         if (allCovered > maximumToCover) {
             refundMap[policyIndex_][week] = incomeMap[policyIndex_][week].mul(
                 allCovered.sub(maximumToCover)).div(allCovered);

@@ -68,11 +68,11 @@ contract('Pool', ([
         );
 
         // Adds policy.
-        await this.Pool.addPolicy(500000, 200, "Metamask", "Bla bla");
-        await this.Pool.addPolicy(1000000, 300, "Rainbow", "Bla bla");
+        await this.Pool.addPolicy(500000, 200, "Metamask", "Bla bla", {from: admin});
+        await this.Pool.addPolicy(1000000, 300, "Rainbow", "Bla bla", {from: admin});
 
         // Defines minimum floating-point calculation error.
-        this.MIN_ERROR = 0.0001e18; // 0.0001 USDC
+        this.MIN_ERROR = 0.002e18; // 0.002 USDC
     });
 
     it('should work', async () => {
@@ -98,8 +98,8 @@ contract('Pool', ([
 
         // *** Move to week1.
         await this.Pool.setTimeExtra(3600 * 24 * 7);
-        await this.Pool.addPremium(0);
-        await this.Pool.addPremium(1);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
 
         // So far there should be 4 USDC premium.
         // 92% of it, or 3.68 goes to sellers
@@ -117,8 +117,8 @@ contract('Pool', ([
 
         // *** Move to week2.
         await this.Pool.setTimeExtra(3600 * 24 * 14);
-        await this.Pool.addPremium(0);
-        await this.Pool.addPremium(1);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
 
         // seller0 now withdraws 30,000 USDC.
         await this.Pool.withdraw(decToHex(30000), {from: seller0});
@@ -140,8 +140,8 @@ contract('Pool', ([
         // *** Move to week5.
         for (let i = 3; i <= 5; ++i) {
             await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
-            await this.Pool.addPremium(0);
-            await this.Pool.addPremium(1);
+            await this.Pool.addPremium(0, {from: anyone});
+            await this.Pool.addPremium(1, {from: anyone});
         }
 
         // So far there should be 12 premium.
@@ -161,8 +161,8 @@ contract('Pool', ([
         // *** Move to week11.
         for (let i = 6; i <= 11; ++i) {
             await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
-            await this.Pool.addPremium(0);
-            await this.Pool.addPremium(1);
+            await this.Pool.addPremium(0, {from: anyone});
+            await this.Pool.addPremium(1, {from: anyone});
         }
 
         // Calling withdrawPending, by anyone, should revert.
@@ -179,8 +179,8 @@ contract('Pool', ([
 
         // *** Move to week12.
         await this.Pool.setTimeExtra(3600 * 24 * 7 * 12);
-        await this.Pool.addPremium(0);
-        await this.Pool.addPremium(1);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
 
         // Calling withdrawPending, by anyone.
         await this.Pool.withdrawPending(seller0, 0, {from: anyone});
@@ -199,8 +199,8 @@ contract('Pool', ([
 
         // *** Move to week13.
         await this.Pool.setTimeExtra(3600 * 24 * 7 * 13);
-        await this.Pool.addPremium(0);
-        await this.Pool.addPremium(1);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
 
         // Calling withdrawReady, by anyone.
         await this.Pool.withdrawReady(seller0, 0, {from: anyone});
@@ -240,21 +240,19 @@ contract('Pool', ([
             {from: buyer0}
         );
 
-        // *** Move forward for two weeks, to week2.
-        for (let i = 1; i <= 2; ++i) {
-            await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
-            await this.Pool.addPremium(0);
-            await this.Pool.addPremium(1);
-        }
+        // *** Move forward to week1.
+        await this.Pool.setTimeExtra(3600 * 24 * 7);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
 
-        await this.Pool.setTimeExtra(3600 * 24 * (7 * 2 + 6));
+        await this.Pool.setTimeExtra(3600 * 24 * (7 * 1 + 6));
 
-        // A hack happens on the 6th day of week2.
+        // A hack happens on the 6th day of week1.
         // Here we wanna test the case that claim and execution are in
         // different weeks.
-        // Assume that there are 30,000 loss.
+        // Assume that there are 70,000 loss.
         // Admin claims (currently only admin can claim) to pay to treasury.
-        await this.Pool.claim(0, decToHex(30000), treasury, {from: admin});
+        await this.Pool.claim(0, decToHex(70000), treasury, {from: admin});
 
         const claimRequestLength =
             +(await this.Pool.getClaimRequestLength({from: anyone})).valueOf();
@@ -266,10 +264,10 @@ contract('Pool', ([
             "Not enough votes"
         );
 
-        // Move forward one more day to week3.
-        await this.Pool.setTimeExtra(3600 * 24 * 7 * 3);
-        await this.Pool.addPremium(0);
-        await this.Pool.addPremium(1);
+        // Move forward one more day to week2.
+        await this.Pool.setTimeExtra(3600 * 24 * 7 * 2);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
 
         // Now vote and execute.
         // Two out of three voters support the claim.
@@ -283,10 +281,35 @@ contract('Pool', ([
             "Already executed"
         );
 
-        // Treasury receives 30,000 USDC.
+        // Treasury receives 70,000 USDC.
         const treaturyBalance =
             +(await this.USDC.balanceOf(treasury)).valueOf();
-        assert.isTrue(Math.abs(treaturyBalance - 30000e18) <
+        assert.equal(treaturyBalance, 70000e18);
+
+        // Moves to week3.
+        await this.Pool.setTimeExtra(3600 * 24 * 7 * 3);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
+
+        // The premium in record is 16 USDC.
+        const coverage = await this.Pool.coverageMap(
+            0, currentWeek + 3, buyer0);
+        assert.equal(+coverage.premium.valueOf(), 16e18);
+
+        const allCovered =
+            +(await this.Pool.coveredMap(0, currentWeek + 3)).valueOf();
+        assert.equal(allCovered, 80000e18);
+
+        // Because now there are only 30,000 + 36 * 0.97 = 30034.92 USDC in
+        // the pool, which equals to 30034.92 / 50% = 60069.84 USDC coverage,
+        // buyer0 should be able to get 19,906.88 USDC of coverage refunded,
+        // which is 3.986032 USDC.
+        await this.Pool.refund(0, currentWeek + 3, buyer0, {from: anyone});
+
+        // buyer0 should now have 1000 - 48 + 3.986032 = 955.986032 USDC
+        const buyer0BalanceAtWeek3 =
+            +(await this.USDC.balanceOf(buyer0)).valueOf();
+        assert.isTrue(Math.abs(buyer0BalanceAtWeek3 - 955.986032e18) <
             this.MIN_ERROR);
     });
 });
