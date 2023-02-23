@@ -18,7 +18,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
     using SafeMath for uint256;
  
     uint256 constant SHARE_UNITS = 1e18;
-    uint256 constant AMOUNT_PER_SHARE = 1e24;
+    uint256 constant AMOUNT_PER_SHARE = 1e18;
     uint256 constant VOTE_EXPIRATION = 3 days;
     uint256 constant RATIO_BASE = 1e6;
 

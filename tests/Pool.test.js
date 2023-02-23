@@ -72,7 +72,7 @@ contract('Pool', ([
         await this.Pool.addPolicy(1000000, 300, "Rainbow", "Bla bla", {from: admin});
 
         // Defines minimum floating-point calculation error.
-        this.MIN_ERROR = 0.002e18; // 0.002 USDC
+        this.MIN_ERROR = 0.0001e18; // 0.0001 USDC
     });
 
     it('should work', async () => {
@@ -300,16 +300,16 @@ contract('Pool', ([
             +(await this.Pool.coveredMap(0, currentWeek + 3)).valueOf();
         assert.equal(allCovered, 80000e18);
 
-        // Because now there are only 30,000 + 36 * 0.97 = 30034.92 USDC in
-        // the pool, which equals to 30034.92 / 50% = 60069.84 USDC coverage,
-        // buyer0 should be able to get 19,906.88 USDC of coverage refunded,
-        // which is 3.986032 USDC.
+        // Because now there are only 30,000 + 32 * 0.97 = 30030.92 USDC in
+        // the pool, which equals to 30030.92 / 50% = 60061.84 USDC coverage,
+        // buyer0 should be able to get 19938.16 USDC of coverage refunded,
+        // which is 3.987632 USDC.
         await this.Pool.refund(0, currentWeek + 3, buyer0, {from: anyone});
 
-        // buyer0 should now have 1000 - 48 + 3.986032 = 955.986032 USDC
+        // buyer0 should now have 1000 - 48 + 3.987632 = 955.987632 USDC
         const buyer0BalanceAtWeek3 =
             +(await this.USDC.balanceOf(buyer0)).valueOf();
-        assert.isTrue(Math.abs(buyer0BalanceAtWeek3 - 955.986032e18) <
+        assert.isTrue(Math.abs(buyer0BalanceAtWeek3 - 955.987632e18) <
             this.MIN_ERROR);
     });
 });
