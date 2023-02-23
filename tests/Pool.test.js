@@ -34,25 +34,24 @@ const decToHex = (x, decimal=18) => {
 }
 
 contract('MockPool', ([
-        admin, seller0, seller1, buyer0, buyer1, anyone,
-        treasury, voter0, voter1, voter2]) => {
+        owner, admin, seller0, seller1, buyer0, buyer1, anyone,
+        treasury, voter0, voter1]) => {
 
     beforeEach(async () => {
         this.USDC = await MockERC20.new(
-            "USDC", "USDC", decToHex(502000), {from: admin});
+            "USDC", "USDC", decToHex(502000), {from: owner});
         this.Tidal = await MockERC20.new(
-            "Tidal", "TIDAL", decToHex(1000000), {from: admin});
-        await this.USDC.transfer(seller0, decToHex(200000), {from: admin});
-        await this.USDC.transfer(seller1, decToHex(300000), {from: admin});
-        await this.USDC.transfer(buyer0, decToHex(1000), {from: admin});
-        await this.USDC.transfer(buyer1, decToHex(1000), {from: admin});
+            "Tidal", "TIDAL", decToHex(1000000), {from: owner});
+        await this.USDC.transfer(seller0, decToHex(200000), {from: owner});
+        await this.USDC.transfer(seller1, decToHex(300000), {from: owner});
+        await this.USDC.transfer(buyer0, decToHex(1000), {from: owner});
+        await this.USDC.transfer(buyer1, decToHex(1000), {from: owner});
 
         this.Pool = await MockPool.new(
-            this.USDC.address, this.Tidal.address, {from: admin});
-        await this.Pool.setAdmin(admin, {from: admin});
-        await this.Pool.addToCommittee(voter0, {from: admin});
-        await this.Pool.addToCommittee(voter1, {from: admin});
-        await this.Pool.addToCommittee(voter2, {from: admin});
+            this.USDC.address, this.Tidal.address, {from: owner});
+        await this.Pool.setAdmin(admin, {from: owner});
+        await this.Pool.addToCommittee(voter0, {from: owner});
+        await this.Pool.addToCommittee(voter1, {from: owner});
 
         await this.Pool.setPool(
             10,
