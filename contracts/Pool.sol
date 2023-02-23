@@ -630,10 +630,11 @@ contract Pool is IPool, NonReentrancy, Ownable {
                 poolInfo.totalShare).sub(request.amount.mul(SHARE_UNITS)).div(
                     poolInfo.amountPerShare);
 
-            // A withdrawFee goes to admin
+            // A withdrawFee goes to everyone.
             uint256 fee = request.amount.mul(withdrawFee).div(RATIO_BASE);
             IERC20(baseToken).safeTransfer(who_, request.amount.sub(fee));
-            IERC20(baseToken).safeTransfer(admin, fee);
+            poolInfo.amountPerShare = poolInfo.amountPerShare.add(
+                fee.mul(SHARE_UNITS).div(poolInfo.totalShare));
 
             request.succeeded = true;
         } else {

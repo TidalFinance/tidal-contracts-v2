@@ -212,10 +212,17 @@ contract('Pool', ([
         assert.isTrue(Math.abs(seller0BalanceAtWeek13 - 129400e18) <
             this.MIN_ERROR);
 
-        // Admin receives 0.36 + 30,000 * 2% = 600.36 USDC.
+        // Totally 30,000 * 2% = 600 USDC goes to everyone.
+        // Capacity should be (100,011.04 + 0.6 - 30,000 + 600) / 50% = 141,223.28
+        const capacityAtWeek13 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek13 - 141223.28e18) <
+            this.MIN_ERROR);
+
+        // Admin has 0.36 USDC.
         const adminBalanceAtWeek13 =
             +(await this.USDC.balanceOf(admin)).valueOf();
-        assert.isTrue(Math.abs(adminBalanceAtWeek13 - 600.36e18) <
+        assert.isTrue(Math.abs(adminBalanceAtWeek13 - 0.36e18) <
             this.MIN_ERROR);
     });
 
