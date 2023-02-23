@@ -8,7 +8,7 @@ contract NonReentrancy {
 
     uint256 private unlocked = 1;
 
-    modifier lock() {
+    modifier noReenter() {
         require(unlocked == 1, 'Tidal: LOCKED');
         unlocked = 0;
         _;

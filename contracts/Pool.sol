@@ -7,12 +7,9 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import "./interfaces/IPool.sol";
-
 import "./common/NonReentrancy.sol";
 
-
-contract Pool is IPool, NonReentrancy, Ownable {
+contract Pool is NonReentrancy, Ownable {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -126,33 +123,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
 
     ClaimRequest[] public claimRequestArray;
 
-    function getClaimRequestLength() external view returns(uint256) {
-        return claimRequestArray.length;
-    }
-
-    function getClaimRequestArray(
-        uint256 limit_,
-        uint256 offset_
-    ) external view returns(ClaimRequest[] memory) {
-        if (claimRequestArray.length <= offset_) {
-            return new ClaimRequest[](0);
-        }
-
-        uint256 leftSideOffset = claimRequestArray.length.sub(offset_);
-        ClaimRequest[] memory result =
-            new ClaimRequest[](
-                leftSideOffset < limit_ ? leftSideOffset : limit_);
-
-        uint256 i = 0;
-        while (i < limit_ && leftSideOffset > 0) {
-            leftSideOffset = leftSideOffset.sub(1);
-            result[i] = claimRequestArray[leftSideOffset];
-            i = i.add(1);
-        }
-
-        return result;
-    }
-
+    // Vote.
     mapping(address => mapping(uint256 => bool)) committeeVote;
 
     // Access control.
@@ -163,35 +134,12 @@ contract Pool is IPool, NonReentrancy, Ownable {
     address[] public committeeArray;
     uint256 public committeeThreshold = 2;
 
-    // Time.
+    // Time control.
 
     uint256 public offset = 4 days;
     uint256 public timeExtra;
 
-    function setTimeExtra(uint256 timeExtra_) external onlyTest {
-        timeExtra = timeExtra_;
-    }
-
-    function getCurrentWeek() public view returns(uint256) {
-        return (now + offset + timeExtra) / (7 days);
-    }
-
-    function getNow() public view returns(uint256) {
-        return now + timeExtra;
-    }
-
-    function getWeekFromTime(uint256 time_) public view returns(uint256) {
-        return (time_ + offset) / (7 days);
-    }
-
-    function getUnlockTime(
-        uint256 time_,
-        uint256 waitWeeks_
-    ) public view returns(uint256) {
-        require(time_ + offset > (7 days), "Time not large enough");
-        return ((time_ + offset) / (7 days) + waitWeeks_) * (7 days) - offset;
-    }
-
+    // Events.
     event Buy(
         address indexed who_,
         uint256 indexed policyIndex_,
@@ -233,13 +181,41 @@ contract Pool is IPool, NonReentrancy, Ownable {
         _;
     }
 
-    function setAdmin(address admin_) public onlyOwner {
-        admin = admin_;
-    }
-
     modifier onlyCommittee() {
         require(committeeIndexPlusOne[_msgSender()] > 0, "Only committee");
         _;
+    }
+
+    // ** Time related functions.
+
+    function setTimeExtra(uint256 timeExtra_) external onlyTest {
+        timeExtra = timeExtra_;
+    }
+
+    function getCurrentWeek() public view returns(uint256) {
+        return (now + offset + timeExtra) / (7 days);
+    }
+
+    function getNow() public view returns(uint256) {
+        return now + timeExtra;
+    }
+
+    function getWeekFromTime(uint256 time_) public view returns(uint256) {
+        return (time_ + offset) / (7 days);
+    }
+
+    function getUnlockTime(
+        uint256 time_,
+        uint256 waitWeeks_
+    ) public view returns(uint256) {
+        require(time_ + offset > (7 days), "Time not large enough");
+        return ((time_ + offset) / (7 days) + waitWeeks_) * (7 days) - offset;
+    }
+
+    // ** Access control.
+
+    function setAdmin(address admin_) public onlyOwner {
+        admin = admin_;
     }
 
     function addToCommittee(address who_) external onlyOwner {
@@ -264,6 +240,9 @@ contract Pool is IPool, NonReentrancy, Ownable {
     function setCommitteeThreshold(uint256 threshold_) external onlyOwner {
         committeeThreshold = threshold_;
     }
+
+
+    // ** Pool and policy config.
 
     function getPool() external view returns(
         uint256 withdrawWaitWeeks1_,
@@ -397,12 +376,14 @@ contract Pool is IPool, NonReentrancy, Ownable {
         return poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS);
     }
 
+    // ** Regular operations.
+
     function buy(
         uint256 policyIndex_,
         uint256 amount_,
         uint256 fromWeek_,
         uint256 toWeek_
-    ) external {
+    ) external noReenter {
         require(enabled && !locked, "Not enabled or unlocked");
 
         require(toWeek_ > fromWeek_, "Not enough weeks");
@@ -447,29 +428,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         );
     }
 
-    function refund(
-        uint256 policyIndex_,
-        uint256 week_,
-        address who_
-    ) external {
-        Coverage storage coverage = coverageMap[policyIndex_][week_][who_];
-
-        require(!coverage.refunded, "Already refunded");
-
-        uint256 allCovered = coveredMap[policyIndex_][week_];
-        uint256 amountToRefund = refundMap[policyIndex_][week_].mul(
-            coverage.amount).div(allCovered);
-        coverage.amount = coverage.amount.mul(
-            coverage.premium.sub(amountToRefund)).div(coverage.premium);
-        coverage.refunded = true;
-
-        IERC20(baseToken).safeTransfer(who_, amountToRefund);
-
-        emit Refund(policyIndex_, week_, who_, amountToRefund);
-    }
-
     // Anyone just call this function once per week for every policy.
-    function addPremium(uint256 policyIndex_) external {
+    function addPremium(uint256 policyIndex_) external noReenter {
         require(enabled && !locked, "Not enabled or unlocked");
 
         uint256 week = getCurrentWeek();
@@ -511,9 +471,31 @@ contract Pool is IPool, NonReentrancy, Ownable {
         incomeMap[policyIndex_][week] = 0;
     }
 
+    // Anyone just call this function once per week for every policy.
+    function refund(
+        uint256 policyIndex_,
+        uint256 week_,
+        address who_
+    ) external noReenter {
+        Coverage storage coverage = coverageMap[policyIndex_][week_][who_];
+
+        require(!coverage.refunded, "Already refunded");
+
+        uint256 allCovered = coveredMap[policyIndex_][week_];
+        uint256 amountToRefund = refundMap[policyIndex_][week_].mul(
+            coverage.amount).div(allCovered);
+        coverage.amount = coverage.amount.mul(
+            coverage.premium.sub(amountToRefund)).div(coverage.premium);
+        coverage.refunded = true;
+
+        IERC20(baseToken).safeTransfer(who_, amountToRefund);
+
+        emit Refund(policyIndex_, week_, who_, amountToRefund);
+    }
+
     function deposit(
         uint256 amount_
-    ) external {
+    ) external noReenter {
         require(enabled && !locked, "Not enabled or unlocked");
 
         require(amount_ >= AMOUNT_PER_SHARE / 1000000, "Less than minimum");
@@ -605,7 +587,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
     function withdrawReady(
         address who_,
         uint256 index_
-    ) external {
+    ) external noReenter {
         require(enabled && !locked, "Not enabled or unlocked");
 
         require(index_ < withdrawRequestMap[who_].length, "No index");
@@ -657,7 +639,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
     }
 
     // Anyone can add tidal to the pool as incentative any time.
-    function addTidal(uint256 amount_) external {
+    function addTidal(uint256 amount_) external noReenter {
         IERC20(tidalToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
 
@@ -681,7 +663,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
                 userInfo.tidalPending).sub(userInfo.tidalDebt);
     }
 
-    function withdrawTidal() external {
+    function withdrawTidal() external noReenter {
         require(enabled && !locked, "Not enabled or unlocked");
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
@@ -695,6 +677,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
         userInfo.tidalDebt = accAmount;
     }
 
+    // ** Emergency
+
     function lockPool() external onlyAdmin {
         locked = true;
     }
@@ -702,6 +686,8 @@ contract Pool is IPool, NonReentrancy, Ownable {
     function unlockPool() external onlyAdmin {
         locked = false;
     }
+
+    // ** Claim, vote, and execute.
 
     function claim(
         uint256 policyIndex_,
@@ -740,7 +726,7 @@ contract Pool is IPool, NonReentrancy, Ownable {
         cr.vote = cr.vote.add(1);
     }
 
-    function execute(uint256 claimIndex_) external {
+    function execute(uint256 claimIndex_) external noReenter {
         require(claimIndex_ < claimRequestArray.length, "Invalid index");
 
         ClaimRequest storage cr = claimRequestArray[claimIndex_];
@@ -756,5 +742,32 @@ contract Pool is IPool, NonReentrancy, Ownable {
 
         poolInfo.amountPerShare = poolInfo.amountPerShare.sub(
             cr.amount.mul(SHARE_UNITS).div(poolInfo.totalShare));
+    }
+
+    function getClaimRequestLength() external view returns(uint256) {
+        return claimRequestArray.length;
+    }
+
+    function getClaimRequestArray(
+        uint256 limit_,
+        uint256 offset_
+    ) external view returns(ClaimRequest[] memory) {
+        if (claimRequestArray.length <= offset_) {
+            return new ClaimRequest[](0);
+        }
+
+        uint256 leftSideOffset = claimRequestArray.length.sub(offset_);
+        ClaimRequest[] memory result =
+            new ClaimRequest[](
+                leftSideOffset < limit_ ? leftSideOffset : limit_);
+
+        uint256 i = 0;
+        while (i < limit_ && leftSideOffset > 0) {
+            leftSideOffset = leftSideOffset.sub(1);
+            result[i] = claimRequestArray[leftSideOffset];
+            i = i.add(1);
+        }
+
+        return result;
     }
 }
