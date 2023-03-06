@@ -120,7 +120,14 @@ contract('MockPool', ([
         await this.Pool.addPremium(1, {from: anyone});
 
         // seller0 now withdraws 30,000 USDC.
-        await this.Pool.withdraw(decToHex(30000), {from: seller0});
+        const poolInfoAtWeek2 = await this.Pool.poolInfo({from: anyone});
+        const amountPerShareAtWeek2 = +poolInfoAtWeek2.amountPerShare;
+        const shareToWithdraw = 30000e18 / amountPerShareAtWeek2;
+        await this.Pool.withdraw(decToHex(shareToWithdraw), {from: seller0});
+
+        // The amount will endup to be
+        // 30000 + (30000 / (100007.36 + 0.4)) * 4 = 30001.1999
+        // We will check it in the end of this test.
 
         // So far there should be 8 premium.
         // 92% of it, or 7.36 goes to sellers
@@ -136,8 +143,20 @@ contract('MockPool', ([
         assert.isTrue(Math.abs(capacityAtWeek2 - 180015.52e18) <
             this.MIN_ERROR);
 
+        // *** Move to week3.
+        await this.Pool.setTimeExtra(3600 * 24 * 21);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
+
+        // The amount withdraw on week2 will become 30001.1039.
+        const poolInfoAtWeek3 = await this.Pool.poolInfo({from: anyone});
+        const amountPerShareAtWeek3 = +poolInfoAtWeek3.amountPerShare;
+        const finalWithdrawAmount = amountPerShareAtWeek3 * shareToWithdraw;
+        assert.isTrue(Math.abs(finalWithdrawAmount - 30001.1039e18) <
+            this.MIN_ERROR);
+
         // *** Move to week5.
-        for (let i = 3; i <= 5; ++i) {
+        for (let i = 4; i <= 5; ++i) {
             await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
             await this.Pool.addPremium(0, {from: anyone});
             await this.Pool.addPremium(1, {from: anyone});
@@ -190,10 +209,10 @@ contract('MockPool', ([
             "Not ready yet"
         );
 
-        // Capacity should be (100,011.04 + 0.6 - 30,000) / 50% = 140,023.28
+        // Capacity should be (100,011.04 + 0.6 - 30001.1039) / 50% = 140021.07217
         const capacityAtWeek12 =
             +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
-        assert.isTrue(Math.abs(capacityAtWeek12 - 140023.28e18) <
+        assert.isTrue(Math.abs(capacityAtWeek12 - 140021.07217e18) <
             this.MIN_ERROR);
 
         // *** Move to week13.
@@ -204,18 +223,18 @@ contract('MockPool', ([
         // Calling withdrawReady, by anyone.
         await this.Pool.withdrawReady(seller0, 0, {from: anyone});
 
-        // Seller0 should have 100,000 + 30,000 * 98% = 129,400 USDC in
+        // Seller0 should have 100,000 + 30,001.1039 * 98% = 129401.0818 USDC in
         // his wallet now.
         const seller0BalanceAtWeek13 =
             +(await this.USDC.balanceOf(seller0)).valueOf();
-        assert.isTrue(Math.abs(seller0BalanceAtWeek13 - 129400e18) <
+        assert.isTrue(Math.abs(seller0BalanceAtWeek13 - 129401.0818e18) <
             this.MIN_ERROR);
 
-        // Totally 30,000 * 2% = 600 USDC goes to everyone.
-        // Capacity should be (100,011.04 + 0.6 - 30,000 + 600) / 50% = 141,223.28
+        // Totally 30001.1039 * 2% = 600.02207 USDC goes to everyone.
+        // Capacity should be (100,011.04 + 0.6 - 30,001.1039 + 600.02207) / 50% = 141221.1163
         const capacityAtWeek13 =
             +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
-        assert.isTrue(Math.abs(capacityAtWeek13 - 141223.28e18) <
+        assert.isTrue(Math.abs(capacityAtWeek13 - 141221.1163e18) <
             this.MIN_ERROR);
 
         // Admin has 0.36 USDC.

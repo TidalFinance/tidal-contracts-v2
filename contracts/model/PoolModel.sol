@@ -43,8 +43,8 @@ contract PoolModel {
         uint256 totalShare;
         uint256 amountPerShare;
 
-        // Pending withdraw amount
-        uint256 pendingWithdrawAmount;
+        // Pending withdraw share
+        uint256 pendingWithdrawShare;
 
         // Tidal Rewards
         uint256 accTidalPerShare;
@@ -56,8 +56,8 @@ contract PoolModel {
         // Base token amount
         uint256 share;
 
-        // Pending withdraw amount
-        uint256 pendingWithdrawAmount;
+        // Pending withdraw share
+        uint256 pendingWithdrawShare;
 
         // Tidal Rewards
         uint256 tidalPending;
@@ -66,10 +66,11 @@ contract PoolModel {
 
     mapping(address => UserInfo) public userInfoMap;
 
+    // week => share
     mapping(uint256 => uint256) public poolWithdrawMap;
 
     struct WithdrawRequest {
-        uint256 amount;
+        uint256 share;
         uint256 time;
         bool pending;
         bool executed;

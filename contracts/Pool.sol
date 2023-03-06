@@ -36,7 +36,7 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
 
     event Withdraw(
         address indexed who_,
-        uint256 amount_
+        uint256 share_
     );
 
     event Refund(
@@ -197,8 +197,8 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
 
     function getCollateralAmount() external view returns(uint256) {
         return poolInfo.amountPerShare.mul(
-            poolInfo.totalShare).div(SHARE_UNITS).sub(
-                poolInfo.pendingWithdrawAmount);
+            poolInfo.totalShare.sub(
+                poolInfo.pendingWithdrawShare)).div(SHARE_UNITS);
     }
 
     function getAvailableCapacity(
@@ -213,13 +213,15 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
             return 0;
         } else {
             amount = poolInfo.amountPerShare.mul(
-                poolInfo.totalShare).div(SHARE_UNITS).sub(
-                    poolInfo.pendingWithdrawAmount);
+                poolInfo.totalShare.sub(
+                    poolInfo.pendingWithdrawShare)).div(SHARE_UNITS);
 
             for (w = currentWeek.sub(withdrawWaitWeeks1);
                  w < w_.sub(withdrawWaitWeeks1);
                  ++w) {
-                amount = amount.sub(poolWithdrawMap[w]);
+                amount = amount.sub(
+                    poolInfo.amountPerShare.mul(
+                        poolWithdrawMap[w]).div(SHARE_UNITS));
             }
 
             Policy storage policy = policyArray[policyIndex_];
@@ -271,8 +273,8 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
         uint256 allPremium = premium.mul(toWeek_.sub(fromWeek_));
 
         uint256 maximumToCover = poolInfo.amountPerShare.mul(
-            poolInfo.totalShare).div(SHARE_UNITS).sub(
-                poolInfo.pendingWithdrawAmount).mul(
+            poolInfo.totalShare.sub(
+                poolInfo.pendingWithdrawShare)).div(SHARE_UNITS).mul(
                     RATIO_BASE).div(policy.collateralRatio);
 
         for (uint256 w = fromWeek_; w < toWeek_; ++w) {
@@ -312,8 +314,8 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
         Policy storage policy = policyArray[policyIndex_];
 
         uint256 maximumToCover = poolInfo.amountPerShare.mul(
-            poolInfo.totalShare).div(SHARE_UNITS).sub(
-                poolInfo.pendingWithdrawAmount).mul(
+            poolInfo.totalShare.sub(
+                poolInfo.pendingWithdrawShare)).div(SHARE_UNITS).mul(
                     RATIO_BASE).div(policy.collateralRatio);
 
         uint256 allCovered = coveredMap[policyIndex_][week];
@@ -400,38 +402,38 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
         address who_
     ) external view returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
-        uint256 userBaseAmount =
-            poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS);
-        return userBaseAmount.sub(
-                userInfo.pendingWithdrawAmount);
+        return poolInfo.amountPerShare.mul(
+            userInfo.share.sub(
+                userInfo.pendingWithdrawShare)).div(SHARE_UNITS);
     }
 
     function withdraw(
-        uint256 amount_
+        uint256 share_
     ) external {
         require(enabled && !locked, "Not enabled or unlocked");
 
+        uint256 amount = poolInfo.amountPerShare.mul(share_);
+
         UserInfo storage userInfo = userInfoMap[_msgSender()];
-        uint256 userBaseAmount =
-            poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS);
-        require(userBaseAmount >=
-            userInfo.pendingWithdrawAmount.add(amount_), "Not enough");
+
+        require(userInfo.share >=
+            userInfo.pendingWithdrawShare.add(share_), "Not enough");
 
         withdrawRequestMap[_msgSender()].push(WithdrawRequest({
-            amount: amount_,
+            share: share_,
             time: getNow(),
             pending: false,
             executed: false,
             succeeded: false
         }));
 
-        userInfo.pendingWithdrawAmount = userInfo.pendingWithdrawAmount.add(
-            amount_);
+        userInfo.pendingWithdrawShare = userInfo.pendingWithdrawShare.add(
+            share_);
 
         uint256 week = getCurrentWeek();
-        poolWithdrawMap[week] = poolWithdrawMap[week].add(amount_);
+        poolWithdrawMap[week] = poolWithdrawMap[week].add(share_);
 
-        emit Withdraw(_msgSender(), amount_);
+        emit Withdraw(_msgSender(), share_);
     }
 
     // Called after withdrawWaitWeeks1
@@ -449,11 +451,11 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
         uint256 unlockTime = getUnlockTime(request.time, withdrawWaitWeeks1);
         require(getNow() > unlockTime, "Not ready yet");
 
-        poolInfo.pendingWithdrawAmount = poolInfo.pendingWithdrawAmount.add(
-            request.amount);
+        poolInfo.pendingWithdrawShare = poolInfo.pendingWithdrawShare.add(
+            request.share);
 
         uint256 week = getWeekFromTime(request.time);
-        poolWithdrawMap[week] = poolWithdrawMap[week].sub(request.amount);
+        poolWithdrawMap[week] = poolWithdrawMap[week].sub(request.share);
 
         request.pending = true;
     }
@@ -476,20 +478,19 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
         require(getNow() > unlockTime, "Not ready yet");
 
         UserInfo storage userInfo = userInfoMap[who_];
-        if (poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS) >=
-                request.amount) {
+
+        if (userInfo.share >= request.share) {
             _updateUserTidal(who_);
 
-            userInfo.share = poolInfo.amountPerShare.mul(
-                userInfo.share).sub(request.amount.mul(SHARE_UNITS)).div(
-                    poolInfo.amountPerShare);
-            poolInfo.totalShare = poolInfo.amountPerShare.mul(
-                poolInfo.totalShare).sub(request.amount.mul(SHARE_UNITS)).div(
-                    poolInfo.amountPerShare);
+            userInfo.share = userInfo.share.sub(request.share);
+            poolInfo.totalShare = poolInfo.totalShare.sub(request.share);
+
+            uint256 amount = poolInfo.amountPerShare.mul(
+                request.share).div(SHARE_UNITS);
 
             // A withdrawFee goes to everyone.
-            uint256 fee = request.amount.mul(withdrawFee).div(RATIO_BASE);
-            IERC20(baseToken).safeTransfer(who_, request.amount.sub(fee));
+            uint256 fee = amount.mul(withdrawFee).div(RATIO_BASE);
+            IERC20(baseToken).safeTransfer(who_, amount.sub(fee));
             poolInfo.amountPerShare = poolInfo.amountPerShare.add(
                 fee.mul(SHARE_UNITS).div(poolInfo.totalShare));
 
@@ -500,11 +501,11 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
 
         request.executed = true;
 
-        // Reduce pendingWithdrawAmount.
-        userInfo.pendingWithdrawAmount = userInfo.pendingWithdrawAmount.sub(
-            request.amount);
-        poolInfo.pendingWithdrawAmount = poolInfo.pendingWithdrawAmount.sub(
-            request.amount);
+        // Reduce pendingWithdrawShare.
+        userInfo.pendingWithdrawShare = userInfo.pendingWithdrawShare.sub(
+            request.share);
+        poolInfo.pendingWithdrawShare = poolInfo.pendingWithdrawShare.sub(
+            request.share);
     }
 
     function withdrawRequestCount(
