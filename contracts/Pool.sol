@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.6.12;
+pragma solidity 0.8.10;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./model/PoolModel.sol";
 import "./common/NonReentrancy.sol";
 
-contract Pool is PoolModel, NonReentrancy, Ownable {
+contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -46,6 +48,14 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
         uint256 amount_
     );
 
+    function initialize(
+        address baseToken_,
+        address tidalToken_
+    ) public initializer {
+        baseToken = baseToken_;
+        tidalToken = tidalToken_;
+    }
+
     modifier onlyAdmin() {
         require(admin == _msgSender(), "Only admin");
         _;
@@ -68,11 +78,11 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
     }
 
     function getCurrentWeek() public view returns(uint256) {
-        return (now + offset + timeExtra) / (7 days);
+        return (block.timestamp + offset + timeExtra) / (7 days);
     }
 
     function getNow() public view returns(uint256) {
-        return now + timeExtra;
+        return block.timestamp + timeExtra;
     }
 
     function getWeekFromTime(uint256 time_) public view returns(uint256) {
@@ -411,8 +421,6 @@ contract Pool is PoolModel, NonReentrancy, Ownable {
         uint256 share_
     ) external {
         require(enabled && !locked, "Not enabled or unlocked");
-
-        uint256 amount = poolInfo.amountPerShare.mul(share_);
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
 
