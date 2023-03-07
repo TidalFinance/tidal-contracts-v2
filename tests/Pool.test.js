@@ -1,7 +1,7 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const ethers = require('ethers');
 
-const MockPool = artifacts.require('MockPool');
+const Pool = artifacts.require('Pool');
 const MockERC20 = artifacts.require('MockERC20');
 
 const decToHex = (x, decimal=18) => {
@@ -33,7 +33,7 @@ const decToHex = (x, decimal=18) => {
     return '0x' + hex.join('');
 }
 
-contract('MockPool', ([
+contract('Pool', ([
         owner, admin, seller0, seller1, buyer0, buyer1, anyone,
         treasury, voter0, voter1]) => {
 
@@ -47,8 +47,9 @@ contract('MockPool', ([
         await this.USDC.transfer(buyer0, decToHex(1000), {from: owner});
         await this.USDC.transfer(buyer1, decToHex(1000), {from: owner});
 
-        this.Pool = await MockPool.new(
-            this.USDC.address, this.Tidal.address, {from: owner});
+        this.Pool = await Pool.new({from: owner});
+        await this.Pool.initialize(
+            this.USDC.address, this.Tidal.address, true, {from: owner});
         await this.Pool.setAdmin(admin, {from: owner});
         await this.Pool.addToCommittee(voter0, {from: owner});
         await this.Pool.addToCommittee(voter1, {from: owner});

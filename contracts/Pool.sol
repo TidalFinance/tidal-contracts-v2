@@ -50,10 +50,13 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
 
     function initialize(
         address baseToken_,
-        address tidalToken_
+        address tidalToken_,
+        bool isTest_
     ) public initializer {
         baseToken = baseToken_;
         tidalToken = tidalToken_;
+        isTest = isTest_;
+        __Ownable_init();
     }
 
     modifier onlyAdmin() {
