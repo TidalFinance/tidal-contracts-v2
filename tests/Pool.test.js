@@ -127,7 +127,7 @@ contract('Pool', ([
         await this.Pool.withdraw(decToHex(shareToWithdraw), {from: seller0});
 
         // The amount will endup to be
-        // 30000 + (30000 / (100007.36 + 0.4)) * 4 = 30001.1999
+        // 30000 + (30000 / (100007.36 + 0.4)) * 4 * 0.92 = 30001.1039
         // We will check it in the end of this test.
 
         // So far there should be 8 premium.
@@ -271,6 +271,12 @@ contract('Pool', ([
         await this.Pool.addPremium(0, {from: anyone});
         await this.Pool.addPremium(1, {from: anyone});
 
+        // seller0 withdraws 40,000 USDC.
+        const poolInfoAtWeek1 = await this.Pool.poolInfo({from: anyone});
+        const amountPerShareAtWeek1 = +poolInfoAtWeek1.amountPerShare;
+        const shareToWithdraw = 40000e18 / amountPerShareAtWeek1;
+        await this.Pool.withdraw(decToHex(shareToWithdraw), {from: seller0});
+
         await this.Pool.setTimeExtra(3600 * 24 * (7 * 1 + 6));
 
         // A hack happens on the 6th day of week1.
@@ -336,6 +342,32 @@ contract('Pool', ([
         const buyer0BalanceAtWeek3 =
             +(await this.USDC.balanceOf(buyer0)).valueOf();
         assert.isTrue(Math.abs(buyer0BalanceAtWeek3 - 955.987632e18) <
+            this.MIN_ERROR);
+
+        // Moves to week11.
+        for (let i = 4; i <= 11; ++i) {
+            await this.Pool.setTimeExtra(3600 * 24 * 7 * i);
+            await this.Pool.addPremium(0, {from: anyone});
+            await this.Pool.addPremium(1, {from: anyone});
+        }
+
+        // Calling withdrawPending, by anyone.
+        await this.Pool.withdrawPending(seller0, 0, {from: anyone});
+
+        // Moves to week12.
+        await this.Pool.setTimeExtra(3600 * 24 * 7 * 12);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
+
+        // Calling withdrawReady, by anyone.
+        await this.Pool.withdrawReady(seller0, 0, {from: anyone});
+
+        const seller0BalanceAtWeek12 =
+            +(await this.USDC.balanceOf(seller0, {from: anyone})).valueOf();
+
+        // seller0 balance should be around 100000 + 40000 * 30% * 98% = 111760
+        // The actual amount is 111774.57824 (with premium earned)
+        assert.isTrue(Math.abs(seller0BalanceAtWeek12 - 111774.57824e18) <
             this.MIN_ERROR);
     });
 });
