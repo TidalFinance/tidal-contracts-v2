@@ -126,9 +126,9 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     }
 
     function setCommitteeThreshold(uint256 threshold_) external onlyOwner {
+        require(thresheld_ >= 2, "Invalid threshold");
         committeeThreshold = threshold_;
     }
-
 
     // ** Pool and policy config.
 
@@ -183,6 +183,8 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         string calldata name_,
         string calldata terms_
     ) external onlyAdmin {
+        require(index_ < policyArray.length, "Invalid index");
+
         Policy storage policy = policyArray[index_];
         policy.collateralRatio = collateralRatio_;
         policy.weeklyPremium = weeklyPremium_;
