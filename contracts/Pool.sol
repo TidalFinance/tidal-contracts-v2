@@ -274,7 +274,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         uint256 fromWeek_,
         uint256 toWeek_
     ) external noReenter {
-        require(enabled && !locked, "Not enabled or unlocked");
+        require(enabled, "Not enabled");
 
         require(toWeek_ > fromWeek_, "Not enough weeks");
         require(toWeek_.sub(fromWeek_) <= policyWeeks,
@@ -320,7 +320,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
 
     // Anyone just call this function once per week for every policy.
     function addPremium(uint256 policyIndex_) external noReenter {
-        require(enabled && !locked, "Not enabled or unlocked");
+        require(enabled, "Not enabled");
 
         uint256 week = getCurrentWeek();
 
@@ -386,7 +386,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     function deposit(
         uint256 amount_
     ) external noReenter {
-        require(enabled && !locked, "Not enabled or unlocked");
+        require(enabled, "Not enabled");
 
         require(amount_ >= AMOUNT_PER_SHARE / 1000000, "Less than minimum");
 
@@ -423,7 +423,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     function withdraw(
         uint256 share_
     ) external {
-        require(enabled && !locked, "Not enabled or unlocked");
+        require(enabled, "Not enabled");
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
 
@@ -452,7 +452,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         address who_,
         uint256 index_
     ) external {
-        require(enabled && !locked, "Not enabled or unlocked");
+        require(enabled, "Not enabled");
 
         require(index_ < withdrawRequestMap[who_].length, "No index");
 
@@ -476,7 +476,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         address who_,
         uint256 index_
     ) external noReenter {
-        require(enabled && !locked, "Not enabled or unlocked");
+        require(enabled, "Not enabled");
 
         require(index_ < withdrawRequestMap[who_].length, "No index");
 
@@ -551,7 +551,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     }
 
     function withdrawTidal() external noReenter {
-        require(enabled && !locked, "Not enabled or unlocked");
+        require(enabled, "Not enabled");
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
         uint256 accAmount = poolInfo.accTidalPerShare.add(userInfo.share);
@@ -566,12 +566,8 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
 
     // ** Emergency
 
-    function lockPool() external onlyAdmin {
-        locked = true;
-    }
-
-    function unlockPool() external onlyAdmin {
-        locked = false;
+    function enablePool(bool enabled_) external onlyAdmin {
+        enabled = enabled_;
     }
 
     // ** Claim, vote, and execute.
