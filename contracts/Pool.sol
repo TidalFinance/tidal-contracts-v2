@@ -119,9 +119,9 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
             address lastOne = committeeArray[committeeArray.length.sub(1)];
             committeeIndexPlusOne[lastOne] = committeeIndexPlusOne[who_];
             committeeArray[committeeIndexPlusOne[who_].sub(1)] = lastOne;
-            committeeIndexPlusOne[who_] = 0;
         }
 
+        committeeIndexPlusOne[who_] = 0;
         committeeArray.pop();
     }
 
