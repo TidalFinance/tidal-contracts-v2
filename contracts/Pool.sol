@@ -126,7 +126,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     }
 
     function setCommitteeThreshold(uint256 threshold_) external onlyOwner {
-        require(thresheld_ >= 2, "Invalid threshold");
+        require(threshold_ >= 2, "Invalid threshold");
         committeeThreshold = threshold_;
     }
 
