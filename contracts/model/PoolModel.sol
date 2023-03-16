@@ -116,10 +116,8 @@ contract PoolModel {
 
     mapping(address => uint256) public committeeIndexPlusOne;
     address[] public committeeArray;
-    uint256 public committeeThreshold = 2;
+    uint256 public committeeThreshold;
 
     // Time control.
-
-    uint256 public offset = 4 days;
     uint256 public timeExtra;
 }

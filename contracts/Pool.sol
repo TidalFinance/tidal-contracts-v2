@@ -21,6 +21,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     uint256 constant AMOUNT_PER_SHARE = 1e18;
     uint256 constant VOTE_EXPIRATION = 3 days;
     uint256 constant RATIO_BASE = 1e6;
+    uint256 constant TIME_OFFSET = 4 days;
 
     // Events.
     event Buy(
@@ -56,6 +57,7 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         baseToken = baseToken_;
         tidalToken = tidalToken_;
         isTest = isTest_;
+        committeeThreshold = 2;
         __Ownable_init();
     }
 
@@ -81,23 +83,23 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     }
 
     function getCurrentWeek() public view returns(uint256) {
-        return (block.timestamp + offset + timeExtra) / (7 days);
+        return (block.timestamp + TIME_OFFSET + timeExtra) / (7 days);
     }
 
     function getNow() public view returns(uint256) {
         return block.timestamp + timeExtra;
     }
 
-    function getWeekFromTime(uint256 time_) public view returns(uint256) {
-        return (time_ + offset) / (7 days);
+    function getWeekFromTime(uint256 time_) public pure returns(uint256) {
+        return (time_ + TIME_OFFSET) / (7 days);
     }
 
     function getUnlockTime(
         uint256 time_,
         uint256 waitWeeks_
-    ) public view returns(uint256) {
-        require(time_ + offset > (7 days), "Time not large enough");
-        return ((time_ + offset) / (7 days) + waitWeeks_) * (7 days) - offset;
+    ) public pure returns(uint256) {
+        require(time_ + TIME_OFFSET > (7 days), "Time not large enough");
+        return ((time_ + TIME_OFFSET) / (7 days) + waitWeeks_) * (7 days) - TIME_OFFSET;
     }
 
     // ** Access control.
