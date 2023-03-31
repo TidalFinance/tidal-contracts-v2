@@ -469,9 +469,6 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         poolInfo.pendingWithdrawShare = poolInfo.pendingWithdrawShare.add(
             request.share);
 
-        uint256 week = getWeekFromTime(request.time);
-        poolWithdrawMap[week] = poolWithdrawMap[week].sub(request.share);
-
         request.pending = true;
     }
 
