@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./model/PoolModel.sol";
 import "./common/NonReentrancy.sol";
+import "./interface/IEventAggregator.sol";
 
 contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
 
@@ -39,7 +40,19 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
 
     event Withdraw(
         address indexed who_,
+        uint256 indexed requestIndex_,
         uint256 share_
+    );
+
+    event WithdrawPending(
+        address indexed who_,
+        uint256 indexed requestIndex_
+    );
+
+    event WithdrawReady(
+        address indexed who_,
+        uint256 indexed requestIndex_,
+        bool succeeded_
     );
 
     event Refund(
@@ -130,6 +143,10 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
     function setCommitteeThreshold(uint256 threshold_) external onlyOwner {
         require(threshold_ >= 2, "Invalid threshold");
         committeeThreshold = threshold_;
+    }
+
+    function setEventAggregator(address eventAggregator_) external onlyOwner {
+        eventAggregator = eventAggregator_;
     }
 
     // ** Pool and policy config.
@@ -320,6 +337,16 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
             fromWeek_,
             toWeek_
         );
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).buy(
+                _msgSender(),
+                policyIndex_,
+                amount_,
+                fromWeek_,
+                toWeek_
+            );
+        }
     }
 
     // Anyone just call this function once per week for every policy.
@@ -385,6 +412,15 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         IERC20(baseToken).safeTransfer(who_, amountToRefund);
 
         emit Refund(policyIndex_, week_, who_, amountToRefund);
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).refund(
+                policyIndex_,
+                week_,
+                who_,
+                amountToRefund
+            );
+        }
     }
 
     function deposit(
@@ -413,6 +449,13 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         }
 
         emit Deposit(_msgSender(), amount_);
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).deposit(
+                _msgSender(),
+                amount_
+            );
+        }
     }
 
     function getUserAvailableWithdrawAmount(
@@ -448,7 +491,19 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
         uint256 week = getCurrentWeek();
         poolWithdrawMap[week] = poolWithdrawMap[week].add(share_);
 
-        emit Withdraw(_msgSender(), share_);
+        emit Withdraw(
+            _msgSender(),
+            withdrawRequestMap[_msgSender()].length.sub(1),
+            share_
+        );
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).withdraw(
+                _msgSender(),
+                withdrawRequestMap[_msgSender()].length.sub(1),
+                share_
+            );
+        }
     }
 
     // Called after withdrawWaitWeeks1
@@ -470,6 +525,15 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
             request.share);
 
         request.pending = true;
+
+        emit WithdrawPending(who_, index_);
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).withdrawPending(
+                who_,
+                index_
+            );
+        }
     }
 
     // Called after withdrawWaitWeeks2
@@ -518,6 +582,16 @@ contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
             request.share);
         poolInfo.pendingWithdrawShare = poolInfo.pendingWithdrawShare.sub(
             request.share);
+
+        emit WithdrawReady(who_, index_, request.succeeded);
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).withdrawReady(
+                who_,
+                index_,
+                request.succeeded
+            );
+        }
     }
 
     function withdrawRequestCount(

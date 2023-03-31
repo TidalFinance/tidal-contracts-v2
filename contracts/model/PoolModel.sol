@@ -120,4 +120,7 @@ contract PoolModel {
 
     // Time control.
     uint256 public timeExtra;
+
+    // Event aggregator.
+    address eventAggregator;
 }
