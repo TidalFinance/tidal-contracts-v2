@@ -13,7 +13,7 @@ import "./model/PoolModel.sol";
 import "./common/NonReentrancy.sol";
 import "./interface/IEventAggregator.sol";
 
-contract Pool is Initializable, PoolModel, NonReentrancy, OwnableUpgradeable {
+contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
