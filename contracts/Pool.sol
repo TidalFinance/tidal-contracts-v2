@@ -259,8 +259,13 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
             }
 
             Policy storage policy = policyArray[policyIndex_];
-            return amount.mul(RATIO_BASE).div(policy.collateralRatio).sub(
-                coveredMap[policyIndex_][w_]);
+            uint256 capacity = amount.mul(RATIO_BASE).div(policy.collateralRatio);
+
+            if (capacity > coveredMap[policyIndex_][w_]) {
+                return capacity.sub(coveredMap[policyIndex_][w_]);
+            } else {
+                return 0;
+            }
         }
     }
 
