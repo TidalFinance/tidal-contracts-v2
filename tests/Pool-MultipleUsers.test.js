@@ -381,5 +381,57 @@ contract('Pool', ([
             +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
         assert.isTrue(Math.abs(capacityAtWeek10 - 14366.7298e18) <
             this.MIN_ERROR);
+
+        // *** Move to week11.
+        await this.Pool.setTimeExtra(3600 * 24 * 77);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // seller0: 4031.7139
+        // seller1: 7917.7767
+        // admin: 87.3586
+        const base0AtWeek11 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(base0AtWeek11 - 4031.7139e18) < this.MIN_ERROR);
+        const base1AtWeek11 =
+            +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(base1AtWeek11 - 7917.7767e18) < this.MIN_ERROR);
+        const baseAdminAtWeek11 =
+            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek11 - 87.3586e18) < this.MIN_ERROR);
+
+        const collateralAmountAtWeek11 = +(await this.Pool.getCollateralAmount()).valueOf();
+        assert.isTrue(Math.abs(collateralAmountAtWeek11 - 22377.3649e18) < this.MIN_ERROR);
+
+        // Capacity: 24754.7298
+        const capacityAtWeek11 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek11 - 24754.7298e18) <
+            this.MIN_ERROR);
+
+        // *** Move to week12.
+        await this.Pool.setTimeExtra(3600 * 24 * 84);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // seller0: 4064.8650
+        // seller1: 7982.8814
+        // admin: 98.0769
+        const base0AtWeek12 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(base0AtWeek12 - 4064.8650e18) < this.MIN_ERROR);
+        const base1AtWeek12 =
+            +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(base1AtWeek12 - 7982.8814e18) < this.MIN_ERROR);
+        const baseAdminAtWeek12 =
+            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek12 - 98.0769e18) < this.MIN_ERROR);
+
+        const collateralAmountAtWeek12 = +(await this.Pool.getCollateralAmount()).valueOf();
+        assert.isTrue(Math.abs(collateralAmountAtWeek12 - 22571.3649e18) < this.MIN_ERROR);
+
+        // Capacity: 25142.7298
+        const capacityAtWeek12 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek12 - 25142.7298e18) <
+            this.MIN_ERROR);
     });
 });
