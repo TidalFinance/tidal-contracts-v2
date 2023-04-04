@@ -24,44 +24,6 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
     uint256 constant RATIO_BASE = 1e6;
     uint256 constant TIME_OFFSET = 4 days;
 
-    // Events.
-    event Buy(
-        address indexed who_,
-        uint256 indexed policyIndex_,
-        uint256 amount_,
-        uint256 fromWeek_,
-        uint256 toWeek_
-    );
-
-    event Deposit(
-        address indexed who_,
-        uint256 amount_
-    );
-
-    event Withdraw(
-        address indexed who_,
-        uint256 indexed requestIndex_,
-        uint256 share_
-    );
-
-    event WithdrawPending(
-        address indexed who_,
-        uint256 indexed requestIndex_
-    );
-
-    event WithdrawReady(
-        address indexed who_,
-        uint256 indexed requestIndex_,
-        bool succeeded_
-    );
-
-    event Refund(
-        uint256 indexed policyIndex_,
-        uint256 indexed week_,
-        address indexed who_,
-        uint256 amount_
-    );
-
     function initialize(
         address baseToken_,
         address tidalToken_,
@@ -335,14 +297,6 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
         IERC20(baseToken).safeTransferFrom(
             _msgSender(), address(this), allPremium);
 
-        emit Buy(
-            _msgSender(),
-            policyIndex_,
-            amount_,
-            fromWeek_,
-            toWeek_
-        );
-
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).buy(
                 _msgSender(),
@@ -416,8 +370,6 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
 
         IERC20(baseToken).safeTransfer(who_, amountToRefund);
 
-        emit Refund(policyIndex_, week_, who_, amountToRefund);
-
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).refund(
                 policyIndex_,
@@ -452,8 +404,6 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
             poolInfo.totalShare = poolInfo.totalShare.add(shareToAdd);
             userInfo.share = userInfo.share.add(shareToAdd);
         }
-
-        emit Deposit(_msgSender(), amount_);
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).deposit(
@@ -496,12 +446,6 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
         uint256 week = getCurrentWeek();
         poolWithdrawMap[week] = poolWithdrawMap[week].add(share_);
 
-        emit Withdraw(
-            _msgSender(),
-            withdrawRequestMap[_msgSender()].length.sub(1),
-            share_
-        );
-
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).withdraw(
                 _msgSender(),
@@ -530,8 +474,6 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
             request.share);
 
         request.pending = true;
-
-        emit WithdrawPending(who_, index_);
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).withdrawPending(
@@ -587,8 +529,6 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
             request.share);
         poolInfo.pendingWithdrawShare = poolInfo.pendingWithdrawShare.sub(
             request.share);
-
-        emit WithdrawReady(who_, index_, request.succeeded);
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).withdrawReady(

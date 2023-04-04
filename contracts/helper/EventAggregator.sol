@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../interface/IEventAggregator.sol";
 
-contract EventAggregator is IEventAggregator, Ownable {
+contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable {
 
     mapping(address => bool) public poolMap;
+
+    function initialize() public initializer {
+        __Ownable_init();
+    }
 
     // Events.
     event Buy(
