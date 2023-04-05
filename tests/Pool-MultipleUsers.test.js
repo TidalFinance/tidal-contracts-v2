@@ -267,6 +267,11 @@ contract('Pool', ([
         await this.Pool.refund(0, currentWeek + 7, buyer0, {from: anyone});
         await this.Pool.refund(0, currentWeek + 7, buyer1, {from: anyone});
 
+        // seller1 withdraws 5000
+        const poolInfoAtWeek7 = await this.Pool.poolInfo({from: anyone});
+        const withdrawAmountAtWeek7 = 5000e18 / (+poolInfoAtWeek7.amountPerShare);
+        await this.Pool.withdraw(decToHex(withdrawAmountAtWeek7), {from: seller1});
+
         // seller0: 3828.5040
         // seller1: 7518.6983
         // admin: 22.2153
@@ -432,6 +437,171 @@ contract('Pool', ([
         const capacityAtWeek12 =
             +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
         assert.isTrue(Math.abs(capacityAtWeek12 - 25142.7298e18) <
+            this.MIN_ERROR);
+
+        // *** Move to week13.
+        await this.Pool.setTimeExtra(3600 * 24 * 91);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // seller0: 4064.8650
+        // seller1: 7982.8814
+        // admin: 98.0769
+        const base0AtWeek13 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(base0AtWeek13 - 4064.8650e18) < this.MIN_ERROR);
+        const base1AtWeek13 =
+            +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(base1AtWeek13 - 7982.8814e18) < this.MIN_ERROR);
+        const baseAdminAtWeek13 =
+            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek13 - 98.0769e18) < this.MIN_ERROR);
+
+        const collateralAmountAtWeek13 = +(await this.Pool.getCollateralAmount()).valueOf();
+        assert.isTrue(Math.abs(collateralAmountAtWeek13 - 22571.3649e18) < this.MIN_ERROR);
+
+        // Capacity: 45142.7298
+        const capacityAtWeek13 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek13 - 45142.7298e18) <
+            this.MIN_ERROR);
+
+        // *** Move to week14.
+        await this.Pool.setTimeExtra(3600 * 24 * 98);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // Withdraw pending from week4.
+        await this.Pool.withdrawPending(seller0, 0, {from: anyone});
+
+        // seller0: 4064.8650
+        // seller1: 7982.8814
+        // admin: 98.0769
+
+        const base0AtWeek14 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(base0AtWeek14 - 4064.8650e18) < this.MIN_ERROR);
+        const base1AtWeek14 =
+            +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(base1AtWeek14 - 7982.8814e18) < this.MIN_ERROR);
+        const baseAdminAtWeek14 =
+            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek14 - 98.0769e18) < this.MIN_ERROR);
+
+        const collateralAmountAtWeek14 = +(await this.Pool.getCollateralAmount()).valueOf();
+        assert.isTrue(Math.abs(collateralAmountAtWeek14 - 18506.5000e18) < this.MIN_ERROR);
+
+        // Capacity: 37012.9998
+        const capacityAtWeek14 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek14 - 37012.9998e18) <
+            this.MIN_ERROR);
+
+        // *** Move to week15.
+        await this.Pool.setTimeExtra(3600 * 24 * 105);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // Withdraw ready from week4.
+        await this.Pool.withdrawReady(seller0, 0, {from: anyone});
+
+        // seller0: 0
+        // seller1: 8017.9494
+        // seller2: 10471.3400
+        // admin: 98.5077
+
+        const base0AtWeek15 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(base0AtWeek15 - 0) < this.MIN_ERROR);
+        const base1AtWeek15 =
+            +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(base1AtWeek15 - 8017.9494e18) < this.MIN_ERROR);
+        const base2AtWeek15 =
+            +(await this.Pool.getUserBaseAmount(seller2)).valueOf();
+        assert.isTrue(Math.abs(base2AtWeek15 - 10471.3400e18) < this.MIN_ERROR);
+        const baseAdminAtWeek15 =
+            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek15 - 98.5077e18) < this.MIN_ERROR);
+
+        const collateralAmountAtWeek15 = +(await this.Pool.getCollateralAmount()).valueOf();
+        assert.isTrue(Math.abs(collateralAmountAtWeek15 - 18587.7972e18) < this.MIN_ERROR);
+
+        // Capacity: 37175.5944
+        const capacityAtWeek15 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek15 - 37175.5944e18) <
+            this.MIN_ERROR);
+
+        // *** Move to week16.
+        await this.Pool.setTimeExtra(3600 * 24 * 112);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // *** Move to week17.
+        await this.Pool.setTimeExtra(3600 * 24 * 119);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // Withdraw pending from week7.
+        await this.Pool.withdrawPending(seller1, 0, {from: anyone});
+
+        // seller0: 0
+        // seller1: 8017.9494
+        // seller2: 10471.3400
+        // admin: 98.5077
+
+        const base0AtWeek17 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(base0AtWeek17 - 0) < this.MIN_ERROR);
+        const base1AtWeek17 =
+            +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(base1AtWeek17 - 8017.9494e18) < this.MIN_ERROR);
+        const base2AtWeek17 =
+            +(await this.Pool.getUserBaseAmount(seller2)).valueOf();
+        assert.isTrue(Math.abs(base2AtWeek17 - 10471.3400e18) < this.MIN_ERROR);
+        const baseAdminAtWeek17 =
+            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek17 - 98.5077e18) < this.MIN_ERROR);
+
+        const collateralAmountAtWeek17 = +(await this.Pool.getCollateralAmount()).valueOf();
+        assert.isTrue(Math.abs(collateralAmountAtWeek17 - 13255.7908e18) < this.MIN_ERROR);
+
+        // Capacity: 26511.5817
+        const capacityAtWeek17 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek17 - 26511.5817e18) <
+            this.MIN_ERROR);
+
+        // *** Move to week18.
+        await this.Pool.setTimeExtra(3600 * 24 * 126);
+        await this.Pool.addPremium(0, {from: anyone});
+
+        // Withdraw ready from week7.
+        await this.Pool.withdrawReady(seller1, 0, {from: anyone});
+
+        // seller0: 0
+        // seller1: 2707.5509
+        // seller2: 10555.5798
+        // admin: 99.3002
+        // fee (in admin wallet): 79.5267
+
+        const base0AtWeek18 =
+            +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(base0AtWeek18 - 0) < this.MIN_ERROR);
+        const base1AtWeek18 =
+            +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(base1AtWeek18 - 2707.5509e18) < this.MIN_ERROR);
+        const base2AtWeek18 =
+            +(await this.Pool.getUserBaseAmount(seller2)).valueOf();
+        assert.isTrue(Math.abs(base2AtWeek18 - 10555.5798e18) < this.MIN_ERROR);
+        const baseAdminAtWeek18 =
+            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek18 - 99.3002e18) < this.MIN_ERROR);
+        const feeAtWeek18 = +(await this.USDC.balanceOf(admin)).valueOf()
+        assert.isTrue(Math.abs(feeAtWeek18 - 79.5267e18) < this.MIN_ERROR);
+
+        const collateralAmountAtWeek18 = +(await this.Pool.getCollateralAmount()).valueOf();
+        assert.isTrue(Math.abs(collateralAmountAtWeek18 - 13362.4310e18) < this.MIN_ERROR);
+
+        // Capacity: 26724.8619
+        const capacityAtWeek18 =
+            +(await this.Pool.getCurrentAvailableCapacity(0)).valueOf();
+        assert.isTrue(Math.abs(capacityAtWeek18 - 26724.8619e18) <
             this.MIN_ERROR);
     });
 });
