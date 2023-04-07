@@ -21,7 +21,8 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         uint256 indexed policyIndex_,
         uint256 amount_,
         uint256 fromWeek_,
-        uint256 toWeek_
+        uint256 toWeek_,
+        string notes_
     );
 
     event Deposit(
@@ -73,7 +74,8 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         uint256 policyIndex_,
         uint256 amount_,
         uint256 fromWeek_,
-        uint256 toWeek_
+        uint256 toWeek_,
+        string calldata notes_
     ) external onlyPool {
         emit Buy(
             msg.sender,
@@ -81,7 +83,8 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
             policyIndex_,
             amount_,
             fromWeek_,
-            toWeek_
+            toWeek_,
+            notes_
         );
     }
 

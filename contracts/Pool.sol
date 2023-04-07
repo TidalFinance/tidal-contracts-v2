@@ -260,7 +260,8 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
         uint256 policyIndex_,
         uint256 amount_,
         uint256 fromWeek_,
-        uint256 toWeek_
+        uint256 toWeek_,
+        string calldata notes_
     ) external noReenter {
         require(enabled, "Not enabled");
 
@@ -303,7 +304,8 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
                 policyIndex_,
                 amount_,
                 fromWeek_,
-                toWeek_
+                toWeek_,
+                notes_
             );
         }
     }
