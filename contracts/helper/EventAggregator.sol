@@ -60,6 +60,37 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         uint256 amount_
     );
 
+    event Claim(
+        uint256 policyIndex_,
+        uint256 amount_,
+        address receipient_
+    );
+
+    event ChangePoolManager(
+        address poolManager_
+    );
+
+    event AddToCommittee(
+        address who_
+    );
+
+    event RemoveFromCommittee(
+        address who_
+    );
+
+    event ChangeCommitteeThreshold(
+        uint256 threshold_
+    );
+
+    event Vote(
+        uint256 requestIndex_,
+        bool support_
+    );
+
+    event Execute(
+        uint256 requestIndex_
+    );
+
     function setPool(address pool_, bool on_) external onlyOwner {
         poolMap[pool_] = on_;
     }
@@ -148,6 +179,60 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
             week_,
             who_,
             amount_
+        );
+    }
+
+    function claim(
+        uint256 policyIndex_,
+        uint256 amount_,
+        address receipient_
+    ) external onlyPool {
+        emit Claim(
+            policyIndex_,
+            amount_,
+            receipient_
+        );
+    }
+
+    function changePoolManager(
+        address poolManager_
+    ) external onlyPool {
+        emit ChangePoolManager(
+            poolManager_
+        );
+    }
+
+    function addToCommittee(address who_) external onlyPool {
+        emit AddToCommittee(
+            who_
+        );
+    }
+
+    function removeFromCommittee(address who_) external onlyPool {
+        emit RemoveFromCommittee(
+            who_
+        );
+    }
+
+    function changeCommitteeThreshold(uint256 threshold_) external onlyPool {
+        emit ChangeCommitteeThreshold(
+            threshold_
+        );
+    }
+
+    function vote(
+        uint256 requestIndex_,
+        bool support_
+    ) external onlyPool {
+        emit Vote(
+            requestIndex_,
+            support_
+        );
+    }
+
+    function execute(uint256 requestIndex_) external onlyPool {
+        emit Execute(
+            requestIndex_
         );
     }
 }

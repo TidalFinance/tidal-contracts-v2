@@ -94,25 +94,24 @@ contract PoolModel {
 
     mapping(uint256 => mapping(uint256 => uint256)) public refundMap;
 
-    // Claiming related data.
+    // Committee request.
 
-    struct ClaimRequest {
-        uint256 policyIndex;
-        uint256 amount;
-        address receipient;
+    struct CommitteeRequest {
         uint256 time;
         uint256 vote;
         bool executed;
+        uint8 operation;
+        bytes data;
     }
 
-    ClaimRequest[] public claimRequestArray;
+    CommitteeRequest[] public committeeRequestArray;
 
     // Vote.
     mapping(address => mapping(uint256 => bool)) committeeVote;
 
     // Access control.
 
-    address public admin;
+    address public poolManager;
 
     mapping(address => uint256) public committeeIndexPlusOne;
     address[] public committeeArray;

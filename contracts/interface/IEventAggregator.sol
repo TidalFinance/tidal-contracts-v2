@@ -40,4 +40,27 @@ interface IEventAggregator {
         address who_,
         uint256 amount_
     ) external;
+
+    function claim(
+        uint256 policyIndex_,
+        uint256 amount_,
+        address receipient_
+    ) external;
+
+    function changePoolManager(
+        address poolManager_
+    ) external;
+
+    function addToCommittee(address who_) external;
+
+    function removeFromCommittee(address who_) external;
+
+    function changeCommitteeThreshold(uint256 threshold_) external;
+
+    function vote(
+        uint256 requestIndex_,
+        bool support_
+    ) external;
+
+    function execute(uint256 requestIndex_) external;
 }

@@ -3,8 +3,8 @@ pragma solidity 0.8.10;
 pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
+import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -13,7 +13,7 @@ import "./model/PoolModel.sol";
 import "./common/NonReentrancy.sol";
 import "./interface/IEventAggregator.sol";
 
-contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
+contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -27,17 +27,25 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
     function initialize(
         address baseToken_,
         address tidalToken_,
-        bool isTest_
+        bool isTest_,
+        address poolManager_,
+        address[] calldata committeeMembers_
     ) public initializer {
         baseToken = baseToken_;
         tidalToken = tidalToken_;
         isTest = isTest_;
         committeeThreshold = 2;
-        __Ownable_init();
+
+        poolManager = poolManager_;
+        for (uint256 i = 0; i < committeeMembers_.length; ++i) {
+            address member = committeeMembers_[i];
+            committeeArray.push(member);
+            committeeIndexPlusOne[member] = committeeArray.length;
+        }
     }
 
-    modifier onlyAdmin() {
-        require(admin == _msgSender(), "Only admin");
+    modifier onlyPoolManager() {
+        require(poolManager == _msgSender(), "Only pool manager");
         _;
     }
 
@@ -77,37 +85,9 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
         return ((time_ + TIME_OFFSET) / (7 days) + waitWeeks_) * (7 days) - TIME_OFFSET;
     }
 
-    // ** Access control.
+    // ** Event aggregator
 
-    function setAdmin(address admin_) public onlyOwner {
-        admin = admin_;
-    }
-
-    function addToCommittee(address who_) external onlyOwner {
-        require(committeeIndexPlusOne[who_] == 0, "Existing committee member");
-        committeeArray.push(who_);
-        committeeIndexPlusOne[who_] = committeeArray.length;
-    }
-
-    function removeFromCommittee(address who_) external onlyOwner {
-        require(committeeIndexPlusOne[who_] > 0,
-                "Non-existing committee member");
-        if (committeeIndexPlusOne[who_] != committeeArray.length) {
-            address lastOne = committeeArray[committeeArray.length.sub(1)];
-            committeeIndexPlusOne[lastOne] = committeeIndexPlusOne[who_];
-            committeeArray[committeeIndexPlusOne[who_].sub(1)] = lastOne;
-        }
-
-        committeeIndexPlusOne[who_] = 0;
-        committeeArray.pop();
-    }
-
-    function setCommitteeThreshold(uint256 threshold_) external onlyOwner {
-        require(threshold_ >= 2, "Invalid threshold");
-        committeeThreshold = threshold_;
-    }
-
-    function setEventAggregator(address eventAggregator_) external onlyOwner {
+    function setEventAggregator(address eventAggregator_) external onlyPoolManager {
         eventAggregator = eventAggregator_;
     }
 
@@ -145,7 +125,7 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
         bool enabled_,
         string calldata name_,
         string calldata terms_
-    ) external onlyAdmin {
+    ) external onlyPoolManager {
         withdrawWaitWeeks1 = withdrawWaitWeeks1_;
         withdrawWaitWeeks2 = withdrawWaitWeeks2_;
         policyWeeks = policyWeeks_;
@@ -163,7 +143,7 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
         uint256 weeklyPremium_,
         string calldata name_,
         string calldata terms_
-    ) external onlyAdmin {
+    ) external onlyPoolManager {
         require(index_ < policyArray.length, "Invalid index");
 
         Policy storage policy = policyArray[index_];
@@ -178,7 +158,7 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
         uint256 weeklyPremium_,
         string calldata name_,
         string calldata terms_
-    ) external onlyAdmin {
+    ) external onlyPoolManager {
         policyArray.push(Policy({
             collateralRatio: collateralRatio_,
             weeklyPremium: weeklyPremium_,
@@ -342,13 +322,13 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
             realIncome.mul(SHARE_UNITS).div(poolInfo.totalShare));
 
         // Distributes fee1.
-        UserInfo storage adminInfo = userInfoMap[admin];
+        UserInfo storage poolManagerInfo = userInfoMap[poolManager];
         uint256 fee1Share = fee1.mul(SHARE_UNITS).div(poolInfo.amountPerShare);
-        adminInfo.share = adminInfo.share.add(fee1Share);
+        poolManagerInfo.share = poolManagerInfo.share.add(fee1Share);
         poolInfo.totalShare = poolInfo.totalShare.add(fee1Share);
 
         // Distributes fee2.
-        IERC20(baseToken).safeTransfer(admin, fee2);
+        IERC20(baseToken).safeTransfer(poolManager, fee2);
 
         incomeMap[policyIndex_][week] = 0;
     }
@@ -588,53 +568,146 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
 
     // ** Emergency
 
-    function enablePool(bool enabled_) external onlyAdmin {
+    function enablePool(bool enabled_) external onlyPoolManager {
         enabled = enabled_;
     }
 
-    // ** Claim, vote, and execute.
+    // ** Claim (and other type of requests), vote, and execute.
 
+    // ** Operation #0, claim
     function claim(
         uint256 policyIndex_,
         uint256 amount_,
         address receipient_
-    ) external onlyAdmin {
-        claimRequestArray.push(ClaimRequest({
-            policyIndex: policyIndex_,
-            amount: amount_,
-            receipient: receipient_,
+    ) external onlyPoolManager {
+        committeeRequestArray.push(CommitteeRequest({
             time: getNow(),
             vote: 0,
-            executed: false
+            executed: false,
+            operation: 0,
+            data: abi.encode(amount_, receipient_)
         }));
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).claim(
+                policyIndex_,
+                amount_,
+                receipient_
+            );
+        }
+    }
+
+    // ** Operation #1, changePoolManager
+    function changePoolManager(
+        address poolManager_
+    ) external onlyCommittee {
+        committeeRequestArray.push(CommitteeRequest({
+            time: getNow(),
+            vote: 0,
+            executed: false,
+            operation: 1,
+            data: abi.encode(poolManager_)
+        }));
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).changePoolManager(
+                poolManager_
+            );
+        }
+    }
+
+    // ** Operation #2, addToCommittee
+    function addToCommittee(
+        address who_
+    ) external onlyCommittee {
+        require(committeeIndexPlusOne[who_] == 0, "Existing committee member");
+
+        committeeRequestArray.push(CommitteeRequest({
+            time: getNow(),
+            vote: 0,
+            executed: false,
+            operation: 2,
+            data: abi.encode(who_)
+        }));
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).addToCommittee(
+                who_
+            );
+        }
+    }
+
+    // ** Operation #3, removeFromCommittee
+    function removeFromCommittee(
+        address who_
+    ) external onlyCommittee {
+        committeeRequestArray.push(CommitteeRequest({
+            time: getNow(),
+            vote: 0,
+            executed: false,
+            operation: 3,
+            data: abi.encode(who_)
+        }));
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).removeFromCommittee(
+                who_
+            );
+        }
+    }
+
+    // ** Operation #4, changeCommitteeThreshold
+    function changeCommitteeThreshold(
+        uint256 threshold_
+    ) external onlyCommittee {
+        committeeRequestArray.push(CommitteeRequest({
+            time: getNow(),
+            vote: 0,
+            executed: false,
+            operation: 4,
+            data: abi.encode(threshold_)
+        }));
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).changeCommitteeThreshold(
+                threshold_
+            );
+        }
     }
 
     function vote(
-        uint256 claimIndex_,
+        uint256 requestIndex_,
         bool support_
     ) external onlyCommittee {
         if (!support_) {
             return;
         }
 
-        require(claimIndex_ < claimRequestArray.length, "Invalid index");
+        require(requestIndex_ < committeeRequestArray.length, "Invalid index");
 
-        require(!committeeVote[_msgSender()][claimIndex_],
+        require(!committeeVote[_msgSender()][requestIndex_],
                 "Already supported");
-        committeeVote[_msgSender()][claimIndex_] = true;
+        committeeVote[_msgSender()][requestIndex_] = true;
 
-        ClaimRequest storage cr = claimRequestArray[claimIndex_];
+        CommitteeRequest storage cr = committeeRequestArray[requestIndex_];
 
         require(getNow() < cr.time.add(VOTE_EXPIRATION),
                 "Already expired");
         require(!cr.executed, "Already executed");
         cr.vote = cr.vote.add(1);
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).vote(
+                requestIndex_,
+                support_
+            );
+        }
     }
 
-    function execute(uint256 claimIndex_) external noReenter {
-        require(claimIndex_ < claimRequestArray.length, "Invalid index");
+    function execute(uint256 requestIndex_) external noReenter {
+        require(requestIndex_ < committeeRequestArray.length, "Invalid index");
 
-        ClaimRequest storage cr = claimRequestArray[claimIndex_];
+        CommitteeRequest storage cr = committeeRequestArray[requestIndex_];
 
         require(cr.vote >= committeeThreshold, "Not enough votes");
         require(getNow() < cr.time.add(VOTE_EXPIRATION),
@@ -643,33 +716,89 @@ contract Pool is Initializable, NonReentrancy, OwnableUpgradeable, PoolModel {
 
         cr.executed = true;
 
-        IERC20(baseToken).safeTransfer(cr.receipient, cr.amount);
-
-        poolInfo.amountPerShare = poolInfo.amountPerShare.sub(
-            cr.amount.mul(SHARE_UNITS).div(poolInfo.totalShare));
-    }
-
-    function getClaimRequestLength() external view returns(uint256) {
-        return claimRequestArray.length;
-    }
-
-    function getClaimRequestArray(
-        uint256 limit_,
-        uint256 offset_
-    ) external view returns(ClaimRequest[] memory) {
-        if (claimRequestArray.length <= offset_) {
-            return new ClaimRequest[](0);
+        if (cr.operation == 0) {
+            (uint256 amount, address receipient) = abi.decode(cr.data, (uint256, address));
+            _executeClaim(amount, receipient);
+        } else if (cr.operation == 1) {
+            address poolManager = address(uint160(uint256(bytes32(cr.data[0]))));
+            _executeChangePoolManager(poolManager);
+        } else if (cr.operation == 2) {
+            address newMember = address(uint160(uint256(bytes32(cr.data[0]))));
+            _executeAddToCommittee(newMember);
+        } else if (cr.operation == 3) {
+            address oldMember = address(uint160(uint256(bytes32(cr.data[0]))));
+            _executeRemoveFromCommittee(oldMember);
+        } else if (cr.operation == 4) {
+            uint256 threshold = uint256(bytes32(cr.data[0]));
+            _executeChangeCommitteeThreshold(threshold);
         }
 
-        uint256 leftSideOffset = claimRequestArray.length.sub(offset_);
-        ClaimRequest[] memory result =
-            new ClaimRequest[](
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).execute(
+                requestIndex_
+            );
+        }
+    }
+
+    function _executeClaim(
+        uint256 amount_,
+        address receipient_
+    ) private {
+        IERC20(baseToken).safeTransfer(receipient_, amount_);
+
+        poolInfo.amountPerShare = poolInfo.amountPerShare.sub(
+            amount_.mul(SHARE_UNITS).div(poolInfo.totalShare));
+    }
+
+    function _executeChangePoolManager(address poolManager_) private {
+        poolManager = poolManager_;
+    }
+
+    function _executeAddToCommittee(address who_) private {
+        require(committeeIndexPlusOne[who_] == 0, "Existing committee member");
+        committeeArray.push(who_);
+        committeeIndexPlusOne[who_] = committeeArray.length;
+    }
+
+    function _executeRemoveFromCommittee(address who_) private {
+        require(committeeIndexPlusOne[who_] > 0,
+                "Non-existing committee member");
+        if (committeeIndexPlusOne[who_] != committeeArray.length) {
+            address lastOne = committeeArray[committeeArray.length.sub(1)];
+            committeeIndexPlusOne[lastOne] = committeeIndexPlusOne[who_];
+            committeeArray[committeeIndexPlusOne[who_].sub(1)] = lastOne;
+        }
+
+        committeeIndexPlusOne[who_] = 0;
+        committeeArray.pop();
+    }
+
+    function _executeChangeCommitteeThreshold(uint256 threshold_) private {
+        require(threshold_ >= 2, "Invalid threshold");
+        committeeThreshold = threshold_;
+    }
+
+    function getCommitteeRequestLength() external view returns(uint256) {
+        return committeeRequestArray.length;
+    }
+
+    function getCommitteeRequestArray(
+        uint256 limit_,
+        uint256 offset_
+    ) external view returns(CommitteeRequest[] memory) {
+        if (committeeRequestArray.length <= offset_) {
+            return new CommitteeRequest[](0);
+        }
+
+        uint256 leftSideOffset = committeeRequestArray.length.sub(offset_);
+        CommitteeRequest[] memory result =
+            new CommitteeRequest[](
                 leftSideOffset < limit_ ? leftSideOffset : limit_);
 
         uint256 i = 0;
         while (i < limit_ && leftSideOffset > 0) {
             leftSideOffset = leftSideOffset.sub(1);
-            result[i] = claimRequestArray[leftSideOffset];
+            result[i] = committeeRequestArray[leftSideOffset];
             i = i.add(1);
         }
 
