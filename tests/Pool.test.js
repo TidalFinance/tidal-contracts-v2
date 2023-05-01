@@ -370,4 +370,69 @@ contract('Pool', ([
         assert.isTrue(Math.abs(seller0BalanceAtWeek12 - 111774.57824e18) <
             this.MIN_ERROR);
     });
+
+    it('governance', async () => {
+        // ** Let voter0 be the new poolManager
+        await this.Pool.changePoolManager(voter0, {from: voter0});
+
+        const committeeRequestLength =
+            +(await this.Pool.getCommitteeRequestLength({from: anyone})).valueOf();
+        assert.equal(committeeRequestLength, 1);
+
+        // Without voting, execution should revert.
+        await expectRevert(
+            this.Pool.execute(0, {from: anyone}),
+            "Not enough votes"
+        );
+
+        // Now vote and execute.
+        // Two out of three voters support the claim.
+        await this.Pool.vote(0, 1, {from: voter0});
+        await this.Pool.vote(0, 1, {from: voter1});
+        await this.Pool.execute(0, {from: anyone});
+
+        // Now voter0 is the new poolManager.
+        const poolManagerAddress = await this.Pool.poolManager();
+        assert.equal(poolManagerAddress, voter0);
+
+        // ** Add seller0 into committee.
+        await this.Pool.addToCommittee(seller0, {from: voter1});
+
+        await this.Pool.vote(1, 1, {from: voter0});
+        await this.Pool.vote(1, 1, {from: voter1});
+        await this.Pool.execute(1, {from: anyone});
+
+        const indexOfCommittee0 = await this.Pool.committeeIndexPlusOne(seller0);
+        assert.equal(indexOfCommittee0, 3);
+
+        // ** Remove voter0 from committee.
+        await this.Pool.removeFromCommittee(voter0, {from: seller0});
+
+        await this.Pool.vote(2, 1, {from: seller0});
+        await this.Pool.vote(2, 1, {from: voter1});
+        await this.Pool.execute(2, {from: anyone});
+
+        const indexOfCommittee1 = await this.Pool.committeeIndexPlusOne(voter0);
+        assert.equal(indexOfCommittee1, 0);
+
+        // ** Add seller1 into committee.
+        await this.Pool.addToCommittee(seller1, {from: voter1});
+    
+        await this.Pool.vote(3, 1, {from: seller0});
+        await this.Pool.vote(3, 1, {from: voter1});
+        await this.Pool.execute(3, {from: anyone});
+
+        const indexOfCommittee2 = await this.Pool.committeeIndexPlusOne(seller1);
+        assert.equal(indexOfCommittee0, 3);
+
+        // ** Change threshold to 3.
+        await this.Pool.changeCommitteeThreshold(3, {from: seller0});
+
+        await this.Pool.vote(4, 1, {from: seller0});
+        await this.Pool.vote(4, 1, {from: seller1});
+        await this.Pool.execute(4, {from: anyone});
+
+        const threshold = await this.Pool.committeeThreshold();
+        assert.equal(threshold, 3);
+    });
 });

@@ -36,6 +36,9 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         isTest = isTest_;
         committeeThreshold = 2;
 
+        require(poolManager_ != address(0), "Empty poolManager");
+        require(committeeMembers_.length >= 2, "At least 2 initial members");
+
         poolManager = poolManager_;
         for (uint256 i = 0; i < committeeMembers_.length; ++i) {
             address member = committeeMembers_[i];
@@ -641,6 +644,9 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
     function removeFromCommittee(
         address who_
     ) external onlyCommittee {
+        require(committeeArray.length > committeeThreshold,
+                "Not enough members");
+
         committeeRequestArray.push(CommitteeRequest({
             time: getNow(),
             vote: 0,
@@ -660,6 +666,9 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
     function changeCommitteeThreshold(
         uint256 threshold_
     ) external onlyCommittee {
+        require(threshold_ <= committeeArray.length,
+                "Threshold more than member count");
+
         committeeRequestArray.push(CommitteeRequest({
             time: getNow(),
             vote: 0,
@@ -720,16 +729,16 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             (uint256 amount, address receipient) = abi.decode(cr.data, (uint256, address));
             _executeClaim(amount, receipient);
         } else if (cr.operation == 1) {
-            address poolManager = address(uint160(uint256(bytes32(cr.data[0]))));
+            address poolManager = abi.decode(cr.data, (address));
             _executeChangePoolManager(poolManager);
         } else if (cr.operation == 2) {
-            address newMember = address(uint160(uint256(bytes32(cr.data[0]))));
+            address newMember = abi.decode(cr.data, (address));
             _executeAddToCommittee(newMember);
         } else if (cr.operation == 3) {
-            address oldMember = address(uint160(uint256(bytes32(cr.data[0]))));
+            address oldMember = abi.decode(cr.data, (address));
             _executeRemoveFromCommittee(oldMember);
         } else if (cr.operation == 4) {
-            uint256 threshold = uint256(bytes32(cr.data[0]));
+            uint256 threshold = abi.decode(cr.data, (uint256));
             _executeChangeCommitteeThreshold(threshold);
         }
 
