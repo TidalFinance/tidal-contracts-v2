@@ -141,6 +141,11 @@ contract('Pool', ([
         await this.Pool.setTimeExtra(3600 * 24 * 21);
         await this.Pool.addPremium(0, {from: anyone});
 
+        // ### Add 10000 Tidal as bonus
+        await this.Tidal.approve(
+            this.Pool.address, decToHex(10000), {from: owner});
+        await this.Pool.addTidal(decToHex(10000), {from: owner});
+
         // Buyer1 buys 20,000 USDC worth of Metamask policy, from Sunday,
         // for 9 weeks.
         // It should cost 200 USDC per week, totally 1800 USDC for 9 weeks.
@@ -157,12 +162,29 @@ contract('Pool', ([
 
         // seller0: 10214.9846
         // seller1: 20060.9393
+        // poolManager: 15.0762
         const base0AtWeek3 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek3 - 10214.9846e18) < this.MIN_ERROR);
         const base1AtWeek3 =
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek3 - 20060.9393e18) < this.MIN_ERROR);
+        const baseAdminAtWeek3 =
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek3 - 15.0762e18) < this.MIN_ERROR);
+
+        // seller0 tidal: 10000 * 10214.9846 / (10214.9846 + 20060.9393 + 15.0762) = 3372.2837
+        // seller1 tidal: 10000 * 20060.9393 / (10214.9846 + 20060.9393 + 15.0762) = 6622.73917
+        // poolManager tidal: 10000 * 15.0762 / (10214.9846 + 20060.9393 + 15.0762) = 4.9771219
+        const tidal0AtWeek3 =
+            +(await this.Pool.getUserTidalAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(tidal0AtWeek3 - 3372.2837e18) < this.MIN_ERROR);
+        const tidal1AtWeek3 =
+            +(await this.Pool.getUserTidalAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(tidal1AtWeek3 - 6622.73917e18) < this.MIN_ERROR);
+        const tidalAdminAtWeek3 =
+            +(await this.Pool.getUserTidalAmount(poolManager)).valueOf();
+        assert.isTrue(Math.abs(tidalAdminAtWeek3 - 4.9771219e18) < this.MIN_ERROR);
 
         // Capacity: 50582
         const capacityAtWeek3 =
