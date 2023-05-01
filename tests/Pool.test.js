@@ -34,7 +34,7 @@ const decToHex = (x, decimal=18) => {
 }
 
 contract('Pool', ([
-        owner, admin, seller0, seller1, buyer0, buyer1, anyone,
+        owner, poolManager, seller0, seller1, buyer0, buyer1, anyone,
         treasury, voter0, voter1]) => {
 
     beforeEach(async () => {
@@ -49,10 +49,8 @@ contract('Pool', ([
 
         this.Pool = await Pool.new({from: owner});
         await this.Pool.initialize(
-            this.USDC.address, this.Tidal.address, true, {from: owner});
-        await this.Pool.setAdmin(admin, {from: owner});
-        await this.Pool.addToCommittee(voter0, {from: owner});
-        await this.Pool.addToCommittee(voter1, {from: owner});
+            this.USDC.address, this.Tidal.address, true,
+            poolManager, [voter0, voter1], {from: owner});
 
         await this.Pool.setPool(
             10,
@@ -64,12 +62,12 @@ contract('Pool', ([
             1,
             "",
             "",
-            {from: admin}
+            {from: poolManager}
         );
 
         // Adds policy.
-        await this.Pool.addPolicy(500000, 200, "Metamask", "Bla bla", {from: admin});
-        await this.Pool.addPolicy(1000000, 300, "Rainbow", "Bla bla", {from: admin});
+        await this.Pool.addPolicy(500000, 200, "Metamask", "Bla bla", {from: poolManager});
+        await this.Pool.addPolicy(1000000, 300, "Rainbow", "Bla bla", {from: poolManager});
 
         // Defines minimum floating-point calculation error.
         this.MIN_ERROR = 0.0001e18; // 0.0001 USDC
@@ -93,6 +91,7 @@ contract('Pool', ([
             decToHex(20000),
             currentWeek + 1,
             currentWeek + 4,
+            "notes",
             {from: buyer0}
         );
 
@@ -239,9 +238,9 @@ contract('Pool', ([
             this.MIN_ERROR);
 
         // Admin has 0.36 USDC.
-        const adminBalanceAtWeek13 =
-            +(await this.USDC.balanceOf(admin)).valueOf();
-        assert.isTrue(Math.abs(adminBalanceAtWeek13 - 0.36e18) <
+        const poolManagerBalanceAtWeek13 =
+            +(await this.USDC.balanceOf(poolManager)).valueOf();
+        assert.isTrue(Math.abs(poolManagerBalanceAtWeek13 - 0.36e18) <
             this.MIN_ERROR);
     });
 
@@ -263,6 +262,7 @@ contract('Pool', ([
             decToHex(80000),
             currentWeek + 1,
             currentWeek + 4,
+            "notes",
             {from: buyer0}
         );
 
@@ -283,12 +283,12 @@ contract('Pool', ([
         // Here we wanna test the case that claim and execution are in
         // different weeks.
         // Assume that there are 70,000 loss.
-        // Admin claims (currently only admin can claim) to pay to treasury.
-        await this.Pool.claim(0, decToHex(70000), treasury, {from: admin});
+        // Admin claims (currently only poolManager can claim) to pay to treasury.
+        await this.Pool.claim(0, decToHex(70000), treasury, {from: poolManager});
 
-        const claimRequestLength =
-            +(await this.Pool.getClaimRequestLength({from: anyone})).valueOf();
-        assert.equal(claimRequestLength, 1);
+        const committeeRequestLength =
+            +(await this.Pool.getCommitteeRequestLength({from: anyone})).valueOf();
+        assert.equal(committeeRequestLength, 1);
 
         // Without voting, execution should revert.
         await expectRevert(

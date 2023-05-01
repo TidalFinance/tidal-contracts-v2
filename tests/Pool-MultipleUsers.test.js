@@ -34,7 +34,7 @@ const decToHex = (x, decimal=18) => {
 }
 
 contract('Pool', ([
-        owner, admin, seller0, seller1, seller2, buyer0, buyer1, anyone,
+        owner, poolManager, seller0, seller1, seller2, buyer0, buyer1, anyone,
         voter0, voter1]) => {
 
     beforeEach(async () => {
@@ -50,10 +50,8 @@ contract('Pool', ([
 
         this.Pool = await Pool.new({from: owner});
         await this.Pool.initialize(
-            this.USDC.address, this.Tidal.address, true, {from: owner});
-        await this.Pool.setAdmin(admin, {from: owner});
-        await this.Pool.addToCommittee(voter0, {from: owner});
-        await this.Pool.addToCommittee(voter1, {from: owner});
+            this.USDC.address, this.Tidal.address, true,
+            poolManager, [voter0, voter1], {from: owner});
 
         await this.Pool.setPool(
             10,
@@ -65,11 +63,11 @@ contract('Pool', ([
             1,
             "",
             "",
-            {from: admin}
+            {from: poolManager}
         );
 
         // Adds policy.
-        await this.Pool.addPolicy(500000, 10000, "Metamask", "Bla bla", {from: admin});
+        await this.Pool.addPolicy(500000, 10000, "Metamask", "Bla bla", {from: poolManager});
 
         // Defines minimum floating-point calculation error.
         this.MIN_ERROR = 0.0005e18; // 0.0005 USDC
@@ -93,6 +91,7 @@ contract('Pool', ([
             decToHex(10000),
             currentWeek + 1,
             currentWeek + 11,
+            "notes",
             {from: buyer0}
         );
 
@@ -152,6 +151,7 @@ contract('Pool', ([
             decToHex(20000),
             currentWeek + 4,
             currentWeek + 13,
+            "notes",
             {from: buyer1}
         );
 
@@ -218,7 +218,7 @@ contract('Pool', ([
 
         // seller0: 10494.0732
         // seller1: 20609.0340
-        // admin: 60.8928
+        // poolManager: 60.8928
         const base0AtWeek6 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek6 - 10494.0732e18) < this.MIN_ERROR);
@@ -226,21 +226,21 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek6 - 20609.0340e18) < this.MIN_ERROR);
         const baseAdminAtWeek6 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek6 - 60.8928e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek6 = +(await this.Pool.getCollateralAmount()).valueOf();
         assert.isTrue(Math.abs(collateralAmountAtWeek6 - 31164.0000e18) < this.MIN_ERROR);
 
         // Payout of 20000
-        await this.Pool.claim(0, decToHex(20000), owner, {from: admin});
+        await this.Pool.claim(0, decToHex(20000), owner, {from: poolManager});
         await this.Pool.vote(0, 1, {from: voter0});
         await this.Pool.vote(0, 1, {from: voter1});
         await this.Pool.execute(0, {from: anyone});
 
         // seller0 (after payout): 3759.3323
         // seller1 (after payout): 7382.8538
-        // admin (after payout): 21.8139
+        // poolManager (after payout): 21.8139
         const base0AtWeek6P =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek6P - 3759.3323e18) < this.MIN_ERROR);
@@ -248,7 +248,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek6P - 7382.8538e18) < this.MIN_ERROR);
         const baseAdminAtWeek6P =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek6P - 21.8139e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek6P = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -274,7 +274,7 @@ contract('Pool', ([
 
         // seller0: 3828.5040
         // seller1: 7518.6983
-        // admin: 22.2153
+        // poolManager: 22.2153
         const base0AtWeek7 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek7 - 3828.5040e18) < this.MIN_ERROR);
@@ -282,7 +282,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek7 - 7518.6983e18) < this.MIN_ERROR);
         const baseAdminAtWeek7 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek7 - 33.3793e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek7 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -304,7 +304,7 @@ contract('Pool', ([
 
         // seller0: 3898.9485
         // seller1: 7657.0423
-        // admin: 45.3740
+        // poolManager: 45.3740
         const base0AtWeek8 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek8 - 3898.9485e18) < this.MIN_ERROR);
@@ -312,7 +312,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek8 - 7657.0423e18) < this.MIN_ERROR);
         const baseAdminAtWeek8 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek8 - 45.3740e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek8 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -341,7 +341,7 @@ contract('Pool', ([
 
         // seller0: 3948.7653
         // seller1: 7754.8761
-        // admin: 60.9538
+        // poolManager: 60.9538
         const base0AtWeek9 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek9 - 3948.7653e18) < this.MIN_ERROR);
@@ -349,7 +349,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek9 - 7754.8761e18) < this.MIN_ERROR);
         const baseAdminAtWeek9 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek9 - 60.9538e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek9 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -367,7 +367,7 @@ contract('Pool', ([
 
         // seller0: 3998.5479
         // seller1: 7852.6429
-        // admin: 76.7222
+        // poolManager: 76.7222
         const base0AtWeek10 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek10 - 3998.5479e18) < this.MIN_ERROR);
@@ -375,7 +375,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek10 - 7852.6429e18) < this.MIN_ERROR);
         const baseAdminAtWeek10 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek10 - 76.7222e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek10 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -393,7 +393,7 @@ contract('Pool', ([
 
         // seller0: 4031.7139
         // seller1: 7917.7767
-        // admin: 87.3586
+        // poolManager: 87.3586
         const base0AtWeek11 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek11 - 4031.7139e18) < this.MIN_ERROR);
@@ -401,7 +401,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek11 - 7917.7767e18) < this.MIN_ERROR);
         const baseAdminAtWeek11 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek11 - 87.3586e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek11 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -419,7 +419,7 @@ contract('Pool', ([
 
         // seller0: 4064.8650
         // seller1: 7982.8814
-        // admin: 98.0769
+        // poolManager: 98.0769
         const base0AtWeek12 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek12 - 4064.8650e18) < this.MIN_ERROR);
@@ -427,7 +427,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek12 - 7982.8814e18) < this.MIN_ERROR);
         const baseAdminAtWeek12 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek12 - 98.0769e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek12 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -445,7 +445,7 @@ contract('Pool', ([
 
         // seller0: 4064.8650
         // seller1: 7982.8814
-        // admin: 98.0769
+        // poolManager: 98.0769
         const base0AtWeek13 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek13 - 4064.8650e18) < this.MIN_ERROR);
@@ -453,7 +453,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek13 - 7982.8814e18) < this.MIN_ERROR);
         const baseAdminAtWeek13 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek13 - 98.0769e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek13 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -474,7 +474,7 @@ contract('Pool', ([
 
         // seller0: 4064.8650
         // seller1: 7982.8814
-        // admin: 98.0769
+        // poolManager: 98.0769
 
         const base0AtWeek14 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
@@ -483,7 +483,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(base1AtWeek14 - 7982.8814e18) < this.MIN_ERROR);
         const baseAdminAtWeek14 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek14 - 98.0769e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek14 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -505,7 +505,7 @@ contract('Pool', ([
         // seller0: 0
         // seller1: 8017.9494
         // seller2: 10471.3400
-        // admin: 98.5077
+        // poolManager: 98.5077
 
         const base0AtWeek15 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
@@ -517,7 +517,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller2)).valueOf();
         assert.isTrue(Math.abs(base2AtWeek15 - 10471.3400e18) < this.MIN_ERROR);
         const baseAdminAtWeek15 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek15 - 98.5077e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek15 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -543,7 +543,7 @@ contract('Pool', ([
         // seller0: 0
         // seller1: 8017.9494
         // seller2: 10471.3400
-        // admin: 98.5077
+        // poolManager: 98.5077
 
         const base0AtWeek17 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
@@ -555,7 +555,7 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller2)).valueOf();
         assert.isTrue(Math.abs(base2AtWeek17 - 10471.3400e18) < this.MIN_ERROR);
         const baseAdminAtWeek17 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek17 - 98.5077e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek17 = +(await this.Pool.getCollateralAmount()).valueOf();
@@ -577,8 +577,8 @@ contract('Pool', ([
         // seller0: 0
         // seller1: 2707.5509
         // seller2: 10555.5798
-        // admin: 99.3002
-        // fee (in admin wallet): 79.5267
+        // poolManager: 99.3002
+        // fee (in poolManager wallet): 79.5267
 
         const base0AtWeek18 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
@@ -590,9 +590,9 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(seller2)).valueOf();
         assert.isTrue(Math.abs(base2AtWeek18 - 10555.5798e18) < this.MIN_ERROR);
         const baseAdminAtWeek18 =
-            +(await this.Pool.getUserBaseAmount(admin)).valueOf();
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek18 - 99.3002e18) < this.MIN_ERROR);
-        const feeAtWeek18 = +(await this.USDC.balanceOf(admin)).valueOf()
+        const feeAtWeek18 = +(await this.USDC.balanceOf(poolManager)).valueOf()
         assert.isTrue(Math.abs(feeAtWeek18 - 79.5267e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek18 = +(await this.Pool.getCollateralAmount()).valueOf();
