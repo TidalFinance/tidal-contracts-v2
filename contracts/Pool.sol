@@ -239,6 +239,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
     // ** Regular operations.
 
+    // Anyone can be a buyer, and pay premium on certain policy for a few weeks.
     function buy(
         uint256 policyIndex_,
         uint256 amount_,
@@ -365,6 +366,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         }
     }
 
+    // Anyone can be a seller, and deposit baseToken (e.g. USDC or WETH)
+    // to the pool.
     function deposit(
         uint256 amount_
     ) external noReenter {
@@ -407,6 +410,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
                 userInfo.pendingWithdrawShare)).div(SHARE_UNITS);
     }
 
+    // Existing sellers can request to withdraw from the pool by shares.
     function withdraw(
         uint256 share_
     ) external {
@@ -440,7 +444,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         }
     }
 
-    // Called after withdrawWaitWeeks1
+    // Called after withdrawWaitWeeks1, by anyone (can be a script or by
+    // seller himself).
     function withdrawPending(
         address who_,
         uint256 index_
@@ -468,7 +473,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         }
     }
 
-    // Called after withdrawWaitWeeks2
+    // Called after withdrawWaitWeeks2, by anyone.
     function withdrawReady(
         address who_,
         uint256 index_
@@ -555,6 +560,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
                 userInfo.tidalPending).sub(userInfo.tidalDebt);
     }
 
+    // Sellers can withdraw TIDAL, which are bonuses, from the pool.
     function withdrawTidal() external noReenter {
         require(enabled, "Not enabled");
 
@@ -571,6 +577,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
     // ** Emergency
 
+    // Pool manager can enable or disable the pool in emergency.
     function enablePool(bool enabled_) external onlyPoolManager {
         enabled = enabled_;
     }
@@ -684,6 +691,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         }
     }
 
+    // Committee members can vote on any of the above 5 types of operations.
     function vote(
         uint256 requestIndex_,
         bool support_
@@ -713,6 +721,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         }
     }
 
+    // Anyone can execute an operation request that has received enough
+    // approving votes.
     function execute(uint256 requestIndex_) external noReenter {
         require(requestIndex_ < committeeRequestArray.length, "Invalid index");
 
@@ -726,7 +736,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         cr.executed = true;
 
         if (cr.operation == 0) {
-            (uint256 amount, address receipient) = abi.decode(cr.data, (uint256, address));
+            (uint256 amount, address receipient) = abi.decode(
+                cr.data, (uint256, address));
             _executeClaim(amount, receipient);
         } else if (cr.operation == 1) {
             address poolManager = abi.decode(cr.data, (address));

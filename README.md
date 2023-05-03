@@ -6,17 +6,27 @@ The two smart contracts that matters are
 and
 `contracts/helper/EventAggregator.sol`
 
-# 1. Admin and Committee
+# 1. Pool Manager and Committee
 
 Every Pool is a standalone smart contract. It is made upgradeable with OpenZeppelin’s Proxy Upgrade Pattern.
 
-Owner of the Pool assigns an admin and a committee of voters. And the admin has the power to do the following:
+When the Pool was initialized, pool manager and committee members are assigned.
 
-- Configuring the parameters of the Pool.
-- Adding new policies or editing existing policies
-- Propose for a payout (by specifying amount and payment address)
+Pool manager can:
 
-The committee can vote on the proposal submitted by the admin. Once the voting result reaches a minimum threshold, then the proposal can be executed.
+- Enable or disable the pool in emergency
+- Configure pool parameters
+- Add new policies or edit existing policies
+- Propose for a payout, or claim (by specifying amount and payment address)
+
+Committee members can:
+
+- Vote for a payout request
+- Propose and vote to change the pool manager
+- Propose and vote to change committee members
+- Propose and vote to change the voting threshold
+
+Once a proposal received enough approving votes, then it can be executed.
 
 # 2. Sellers and Buyers
 
