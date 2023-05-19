@@ -300,6 +300,11 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
         uint256 week = getCurrentWeek();
 
+        if (incomeMap[policyIndex_][week] == 0) {
+            // Already added premium or no premium to add.
+            return;
+        }
+
         Policy storage policy = policyArray[policyIndex_];
 
         uint256 maximumToCover = poolInfo.amountPerShare.mul(
@@ -343,6 +348,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         uint256 week_,
         address who_
     ) external noReenter {
+        require(refundMap[policyIndex_][week_] > 0, "Not ready to refund");
+
         Coverage storage coverage = coverageMap[policyIndex_][week_][who_];
 
         require(!coverage.refunded, "Already refunded");

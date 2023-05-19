@@ -320,6 +320,17 @@ contract('Pool', ([
 
         // Moves to week3.
         await this.Pool.setTimeExtra(3600 * 24 * 7 * 3);
+
+        // Calling refund before addPremium will fail.
+        await expectRevert(
+            this.Pool.refund(0, currentWeek + 3, buyer0, {from: anyone}),
+            "Not ready to refund"
+        );
+
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
+
+        // Calling addPremium repeatedly won't matter.
         await this.Pool.addPremium(0, {from: anyone});
         await this.Pool.addPremium(1, {from: anyone});
 
