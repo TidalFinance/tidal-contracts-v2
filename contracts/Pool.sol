@@ -272,11 +272,10 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             require(coveredMap[policyIndex_][w] <= maximumToCover,
                 "Not enough to buy");
 
-            coverageMap[policyIndex_][w][_msgSender()] = Coverage({
-                amount: amount_,
-                premium: premium,
-                refunded: false
-            });
+            Coverage storage entry = coverageMap[policyIndex_][w][_msgSender()];
+            entry.amount = entry.amount.add(amount_);
+            entry.premium = entry.premium.add(premium);
+            entry.refunded = false;
         }
 
         IERC20(baseToken).safeTransferFrom(
