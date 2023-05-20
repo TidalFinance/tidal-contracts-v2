@@ -330,11 +330,21 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         poolInfo.amountPerShare = poolInfo.amountPerShare.add(
             realIncome.mul(SHARE_UNITS).div(poolInfo.totalShare));
 
-        // Distributes fee1.
+        // Updates tidalPending (before Distributes fee1).
         UserInfo storage poolManagerInfo = userInfoMap[poolManager];
+        uint256 accAmount = poolInfo.accTidalPerShare.mul(
+            poolManagerInfo.share).div(SHARE_UNITS);
+        poolManagerInfo.tidalPending = poolManagerInfo.tidalPending.add(
+            accAmount.sub(poolManagerInfo.tidalDebt));
+
+        // Distributes fee1.
         uint256 fee1Share = fee1.mul(SHARE_UNITS).div(poolInfo.amountPerShare);
         poolManagerInfo.share = poolManagerInfo.share.add(fee1Share);
         poolInfo.totalShare = poolInfo.totalShare.add(fee1Share);
+
+        // Updates tidalDebt.
+        poolManagerInfo.tidalDebt = poolInfo.accTidalPerShare.mul(
+            poolManagerInfo.share).div(SHARE_UNITS);
 
         // Distributes fee2.
         IERC20(baseToken).safeTransfer(poolManager, fee2);
@@ -385,9 +395,13 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         IERC20(baseToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
 
-        _updateUserTidal(_msgSender());
-
         UserInfo storage userInfo = userInfoMap[_msgSender()];
+
+        // Updates tidalPending.
+        uint256 accAmount = poolInfo.accTidalPerShare.mul(
+            userInfo.share).div(SHARE_UNITS);
+        userInfo.tidalPending = userInfo.tidalPending.add(
+            accAmount.sub(userInfo.tidalDebt));
 
         if (poolInfo.totalShare == 0) {          
             poolInfo.amountPerShare = AMOUNT_PER_SHARE;
@@ -399,6 +413,10 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             poolInfo.totalShare = poolInfo.totalShare.add(shareToAdd);
             userInfo.share = userInfo.share.add(shareToAdd);
         }
+
+        // Updates tidalDebt.
+        userInfo.tidalDebt = poolInfo.accTidalPerShare.mul(
+            userInfo.share).div(SHARE_UNITS);
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).deposit(
@@ -500,10 +518,18 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         UserInfo storage userInfo = userInfoMap[who_];
 
         if (userInfo.share >= request.share) {
-            _updateUserTidal(who_);
+            // Updates tidalPending.
+            uint256 accAmount = poolInfo.accTidalPerShare.mul(
+                userInfo.share).div(SHARE_UNITS);
+            userInfo.tidalPending = userInfo.tidalPending.add(
+                accAmount.sub(userInfo.tidalDebt));
 
             userInfo.share = userInfo.share.sub(request.share);
             poolInfo.totalShare = poolInfo.totalShare.sub(request.share);
+
+            // Updates tidalDebt.
+            userInfo.tidalDebt = poolInfo.accTidalPerShare.mul(
+                userInfo.share).div(SHARE_UNITS);
 
             uint256 amount = poolInfo.amountPerShare.mul(
                 request.share).div(SHARE_UNITS);
@@ -548,16 +574,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             _msgSender(), address(this), amount_);
 
         poolInfo.accTidalPerShare = poolInfo.accTidalPerShare.add(
-            amount_.mul(SHARE_UNITS)).div(poolInfo.totalShare);
-    }
-
-    function _updateUserTidal(address who_) private {
-        UserInfo storage userInfo = userInfoMap[who_];
-        uint256 accAmount = poolInfo.accTidalPerShare.add(
-            userInfo.share).div(SHARE_UNITS);
-        userInfo.tidalPending = userInfo.tidalPending.add(
-            accAmount.sub(userInfo.tidalDebt));
-        userInfo.tidalDebt = accAmount;
+            amount_.mul(SHARE_UNITS).div(poolInfo.totalShare));
     }
 
     function getUserTidalAmount(address who_) external view returns(uint256) {
@@ -572,7 +589,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         require(enabled, "Not enabled");
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
-        uint256 accAmount = poolInfo.accTidalPerShare.add(userInfo.share);
+        uint256 accAmount = poolInfo.accTidalPerShare.mul(
+            userInfo.share).div(SHARE_UNITS);
         uint256 tidalAmount = userInfo.tidalPending.add(
             accAmount).sub(userInfo.tidalDebt);
 

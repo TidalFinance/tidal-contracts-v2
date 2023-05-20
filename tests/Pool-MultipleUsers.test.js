@@ -117,6 +117,11 @@ contract('Pool', ([
         await this.Pool.setTimeExtra(3600 * 24 * 14);
         await this.Pool.addPremium(0, {from: anyone});
 
+        // ### Add 1000 Tidal as bonus
+        await this.Tidal.approve(
+            this.Pool.address, decToHex(1000), {from: owner});
+        await this.Pool.addTidal(decToHex(1000), {from: owner});
+
         // seller1 now deposits 30000 USDC.
         await this.USDC.approve(
             this.Pool.address, decToHex(20000), {from: seller1});
@@ -126,10 +131,25 @@ contract('Pool', ([
         // 92% of it, or 92 goes to seller0 & managementFee1 with ratio 10092:5
         // 5% of it, or 5 goes to managementFee1
         // 3% of it, or 3 goes to managementFee2
-        // Seller0 should have 10000 + 92 + 92 * 10092 / 10097 = 10183.9544
+
+        // Seller0 should have 10000 + 92 + 92 * 10092 / 10097 = 10183.95444191344
+        // Admin should have 10.045558086
         const base0AtWeek2 =
             +(await this.Pool.getUserBaseAmount(seller0)).valueOf();
         assert.isTrue(Math.abs(base0AtWeek2 - 10183.9544e18) < this.MIN_ERROR);
+        const baseAdminAtWeek2 =
+            +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
+        assert.isTrue(Math.abs(baseAdminAtWeek2 - 10.0456e18) < this.MIN_ERROR);
+
+        // seller0 tidal: 1000 * 10183.95444191344 / (10183.95444191344 + 10.045558086) = 999.014561
+        // seller1 tidal: 0
+        // poolManager tidal: 1000 * 10.045558086 / (10183.95444191344 + 10.045558086) = 0.9854383
+        const tidal0AtWeek2 =
+            +(await this.Pool.getUserTidalAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(tidal0AtWeek2 - 999.014561e18) < this.MIN_ERROR);
+        const tidalAdminAtWeek2 =
+            +(await this.Pool.getUserTidalAmount(poolManager)).valueOf();
+        assert.isTrue(Math.abs(tidalAdminAtWeek2 - 0.9854383e18) < this.MIN_ERROR);
 
         // Capacity should be 50388
         const capacityAtWeek2 =
@@ -173,18 +193,18 @@ contract('Pool', ([
             +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek3 - 15.0762e18) < this.MIN_ERROR);
 
-        // seller0 tidal: 10000 * 10214.9846 / (10214.9846 + 20060.9393 + 15.0762) = 3372.2837
+        // seller0 tidal: 999.014561 + 10000 * 10214.9846 / (10214.9846 + 20060.9393 + 15.0762) = 4371.29826
         // seller1 tidal: 10000 * 20060.9393 / (10214.9846 + 20060.9393 + 15.0762) = 6622.73917
-        // poolManager tidal: 10000 * 15.0762 / (10214.9846 + 20060.9393 + 15.0762) = 4.9771219
+        // poolManager tidal: 0.9854383 + 10000 * 15.0762 / (10214.9846 + 20060.9393 + 15.0762) = 5.96256
         const tidal0AtWeek3 =
             +(await this.Pool.getUserTidalAmount(seller0)).valueOf();
-        assert.isTrue(Math.abs(tidal0AtWeek3 - 3372.2837e18) < this.MIN_ERROR);
+        assert.isTrue(Math.abs(tidal0AtWeek3 - 4371.29826e18) < this.MIN_ERROR);
         const tidal1AtWeek3 =
             +(await this.Pool.getUserTidalAmount(seller1)).valueOf();
         assert.isTrue(Math.abs(tidal1AtWeek3 - 6622.73917e18) < this.MIN_ERROR);
         const tidalAdminAtWeek3 =
             +(await this.Pool.getUserTidalAmount(poolManager)).valueOf();
-        assert.isTrue(Math.abs(tidalAdminAtWeek3 - 4.9771219e18) < this.MIN_ERROR);
+        assert.isTrue(Math.abs(tidalAdminAtWeek3 - 5.96256e18) < this.MIN_ERROR);
 
         // Capacity: 50582
         const capacityAtWeek3 =
@@ -524,6 +544,14 @@ contract('Pool', ([
         // Withdraw ready from week4.
         await this.Pool.withdrawReady(seller0, 0, {from: anyone});
 
+        // ### Let seller1 withdraw tidal before adding more tidal.
+        await this.Pool.withdrawTidal({from: seller1});
+
+        // ### Add 5000 Tidal as bonus
+        await this.Tidal.approve(
+            this.Pool.address, decToHex(5000), {from: owner});
+        await this.Pool.addTidal(decToHex(5000), {from: owner});
+
         // seller0: 0
         // seller1: 8017.9494
         // seller2: 10471.3400
@@ -541,6 +569,23 @@ contract('Pool', ([
         const baseAdminAtWeek15 =
             +(await this.Pool.getUserBaseAmount(poolManager)).valueOf();
         assert.isTrue(Math.abs(baseAdminAtWeek15 - 98.5077e18) < this.MIN_ERROR);
+
+        // seller0 tidal: 4371.29826
+        // seller1 tidal: 0 + 5000 * 8017.9494 / (8017.9494 + 10471.3400 + 98.5077) = 2156.77774
+        // seller2 tidal: 5000 * 10471.3400 / (8017.9494 + 10471.3400 + 98.5077) = 2816.72431
+        // poolManager tidal: 5.96256 + 5000 * 98.5077 / (8017.9494 + 10471.3400 + 98.5077) = 32.460509
+        const tidal0AtWeek15 =
+            +(await this.Pool.getUserTidalAmount(seller0)).valueOf();
+        assert.isTrue(Math.abs(tidal0AtWeek15 - 4371.29826e18) < this.MIN_ERROR);
+        const tidal1AtWeek15 =
+            +(await this.Pool.getUserTidalAmount(seller1)).valueOf();
+        assert.isTrue(Math.abs(tidal1AtWeek15 - 2156.77774e18) < this.MIN_ERROR);
+        const tidal2AtWeek15 =
+            +(await this.Pool.getUserTidalAmount(seller2)).valueOf();
+        assert.isTrue(Math.abs(tidal2AtWeek15 - 2816.72431e18) < this.MIN_ERROR);
+        const tidalAdminAtWeek15 =
+            +(await this.Pool.getUserTidalAmount(poolManager)).valueOf();
+        assert.isTrue(Math.abs(tidalAdminAtWeek15 - 32.460509e18) < this.MIN_ERROR);
 
         const collateralAmountAtWeek15 = +(await this.Pool.getCollateralAmount()).valueOf();
         assert.isTrue(Math.abs(collateralAmountAtWeek15 - 18587.7972e18) < this.MIN_ERROR);
