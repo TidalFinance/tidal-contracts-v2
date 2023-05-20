@@ -4,7 +4,6 @@ pragma solidity 0.8.10;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -15,7 +14,6 @@ import "./interface/IEventAggregator.sol";
 contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
  
     uint256 constant SHARE_UNITS = 1e18;
     uint256 constant AMOUNT_PER_SHARE = 1e18;
@@ -174,9 +172,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
     }
 
     function getCollateralAmount() external view returns(uint256) {
-        return poolInfo.amountPerShare.mul(
-            poolInfo.totalShare.sub(
-                poolInfo.pendingWithdrawShare)).div(SHARE_UNITS);
+        return poolInfo.amountPerShare * (
+            poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS;
     }
 
     function getAvailableCapacity(
@@ -187,26 +184,23 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         uint256 amount = 0;
         uint256 w;
 
-        if (w_ >= currentWeek.add(withdrawWaitWeeks1) || w_ < currentWeek) {
+        if (w_ >= currentWeek + withdrawWaitWeeks1 || w_ < currentWeek) {
             return 0;
         } else {
-            amount = poolInfo.amountPerShare.mul(
-                poolInfo.totalShare.sub(
-                    poolInfo.pendingWithdrawShare)).div(SHARE_UNITS);
+            amount = poolInfo.amountPerShare * (
+                poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS;
 
-            for (w = currentWeek.sub(withdrawWaitWeeks1);
-                 w < w_.sub(withdrawWaitWeeks1);
+            for (w = currentWeek - withdrawWaitWeeks1;
+                 w < w_ - withdrawWaitWeeks1;
                  ++w) {
-                amount = amount.sub(
-                    poolInfo.amountPerShare.mul(
-                        poolWithdrawMap[w]).div(SHARE_UNITS));
+                amount -= poolInfo.amountPerShare * poolWithdrawMap[w] / SHARE_UNITS;
             }
 
             Policy storage policy = policyArray[policyIndex_];
-            uint256 capacity = amount.mul(RATIO_BASE).div(policy.collateralRatio);
+            uint256 capacity = amount * RATIO_BASE / policy.collateralRatio;
 
             if (capacity > coveredMap[policyIndex_][w_]) {
-                return capacity.sub(coveredMap[policyIndex_][w_]);
+                return capacity - coveredMap[policyIndex_][w_];
             } else {
                 return 0;
             }
@@ -233,7 +227,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
     function getUserBaseAmount(address who_) external view returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
-        return poolInfo.amountPerShare.mul(userInfo.share).div(SHARE_UNITS);
+        return poolInfo.amountPerShare * userInfo.share / SHARE_UNITS;
     }
 
     // ** Regular operations.
@@ -249,31 +243,28 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         require(enabled, "Not enabled");
 
         require(toWeek_ > fromWeek_, "Not enough weeks");
-        require(toWeek_.sub(fromWeek_) <= policyWeeks,
+        require(toWeek_ - fromWeek_ <= policyWeeks,
             "Too many weeks");
         require(fromWeek_ > getCurrentWeek(), "Buy next week");
 
         Policy storage policy = policyArray[policyIndex_];
-        uint256 premium = amount_.mul(policy.weeklyPremium).div(RATIO_BASE);
-        uint256 allPremium = premium.mul(toWeek_.sub(fromWeek_));
+        uint256 premium = amount_ * policy.weeklyPremium / RATIO_BASE;
+        uint256 allPremium = premium * (toWeek_ - fromWeek_);
 
-        uint256 maximumToCover = poolInfo.amountPerShare.mul(
-            poolInfo.totalShare.sub(
-                poolInfo.pendingWithdrawShare)).div(SHARE_UNITS).mul(
-                    RATIO_BASE).div(policy.collateralRatio);
+        uint256 maximumToCover = poolInfo.amountPerShare * (
+            poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS *
+                    RATIO_BASE / policy.collateralRatio;
 
         for (uint256 w = fromWeek_; w < toWeek_; ++w) {
-            incomeMap[policyIndex_][w] =
-                incomeMap[policyIndex_][w].add(premium);
-            coveredMap[policyIndex_][w] =
-                coveredMap[policyIndex_][w].add(amount_);
+            incomeMap[policyIndex_][w] += premium;
+            coveredMap[policyIndex_][w] += amount_;
 
             require(coveredMap[policyIndex_][w] <= maximumToCover,
                 "Not enough to buy");
 
             Coverage storage entry = coverageMap[policyIndex_][w][_msgSender()];
-            entry.amount = entry.amount.add(amount_);
-            entry.premium = entry.premium.add(premium);
+            entry.amount += amount_;
+            entry.premium += premium;
             entry.refunded = false;
         }
 
@@ -305,44 +296,41 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
         Policy storage policy = policyArray[policyIndex_];
 
-        uint256 maximumToCover = poolInfo.amountPerShare.mul(
-            poolInfo.totalShare.sub(
-                poolInfo.pendingWithdrawShare)).div(SHARE_UNITS).mul(
-                    RATIO_BASE).div(policy.collateralRatio);
+        uint256 maximumToCover = poolInfo.amountPerShare * (
+            poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS *
+                RATIO_BASE / policy.collateralRatio;
 
         uint256 allCovered = coveredMap[policyIndex_][week];
 
         if (allCovered > maximumToCover) {
-            refundMap[policyIndex_][week] = incomeMap[policyIndex_][week].mul(
-                allCovered.sub(maximumToCover)).div(allCovered);
-            incomeMap[policyIndex_][week] = incomeMap[policyIndex_][week].sub(
-                refundMap[policyIndex_][week]);
+            refundMap[policyIndex_][week] = incomeMap[policyIndex_][week] * (
+                allCovered - maximumToCover) / allCovered;
+            incomeMap[policyIndex_][week] -= refundMap[policyIndex_][week];
         }
 
         // Deducts management fee.
         uint256 totalIncome = incomeMap[policyIndex_][week];
-        uint256 fee1 = totalIncome.mul(managementFee1).div(RATIO_BASE);
-        uint256 fee2 = totalIncome.mul(managementFee2).div(RATIO_BASE);
-        uint256 realIncome = totalIncome.sub(fee1).sub(fee2);
+        uint256 fee1 = totalIncome * managementFee1 / RATIO_BASE;
+        uint256 fee2 = totalIncome * managementFee2 / RATIO_BASE;
+        uint256 realIncome = totalIncome - fee1 - fee2;
 
-        poolInfo.amountPerShare = poolInfo.amountPerShare.add(
-            realIncome.mul(SHARE_UNITS).div(poolInfo.totalShare));
+        poolInfo.amountPerShare +=
+            realIncome * SHARE_UNITS / poolInfo.totalShare;
 
         // Updates tidalPending (before Distributes fee1).
         UserInfo storage poolManagerInfo = userInfoMap[poolManager];
-        uint256 accAmount = poolInfo.accTidalPerShare.mul(
-            poolManagerInfo.share).div(SHARE_UNITS);
-        poolManagerInfo.tidalPending = poolManagerInfo.tidalPending.add(
-            accAmount.sub(poolManagerInfo.tidalDebt));
+        uint256 accAmount = poolInfo.accTidalPerShare *
+            poolManagerInfo.share / SHARE_UNITS;
+        poolManagerInfo.tidalPending += accAmount - poolManagerInfo.tidalDebt;
 
         // Distributes fee1.
-        uint256 fee1Share = fee1.mul(SHARE_UNITS).div(poolInfo.amountPerShare);
-        poolManagerInfo.share = poolManagerInfo.share.add(fee1Share);
-        poolInfo.totalShare = poolInfo.totalShare.add(fee1Share);
+        uint256 fee1Share = fee1 * SHARE_UNITS / poolInfo.amountPerShare;
+        poolManagerInfo.share += fee1Share;
+        poolInfo.totalShare += fee1Share;
 
         // Updates tidalDebt.
-        poolManagerInfo.tidalDebt = poolInfo.accTidalPerShare.mul(
-            poolManagerInfo.share).div(SHARE_UNITS);
+        poolManagerInfo.tidalDebt = poolInfo.accTidalPerShare *
+            poolManagerInfo.share / SHARE_UNITS;
 
         // Distributes fee2.
         IERC20(baseToken).safeTransfer(poolManager, fee2);
@@ -363,10 +351,10 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         require(!coverage.refunded, "Already refunded");
 
         uint256 allCovered = coveredMap[policyIndex_][week_];
-        uint256 amountToRefund = refundMap[policyIndex_][week_].mul(
-            coverage.amount).div(allCovered);
-        coverage.amount = coverage.amount.mul(
-            coverage.premium.sub(amountToRefund)).div(coverage.premium);
+        uint256 amountToRefund = refundMap[policyIndex_][week_] *
+            coverage.amount / allCovered;
+        coverage.amount = coverage.amount *
+            (coverage.premium - amountToRefund) / coverage.premium;
         coverage.refunded = true;
 
         IERC20(baseToken).safeTransfer(who_, amountToRefund);
@@ -396,25 +384,24 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         UserInfo storage userInfo = userInfoMap[_msgSender()];
 
         // Updates tidalPending.
-        uint256 accAmount = poolInfo.accTidalPerShare.mul(
-            userInfo.share).div(SHARE_UNITS);
-        userInfo.tidalPending = userInfo.tidalPending.add(
-            accAmount.sub(userInfo.tidalDebt));
+        uint256 accAmount = poolInfo.accTidalPerShare *
+            userInfo.share / SHARE_UNITS;
+        userInfo.tidalPending += accAmount - userInfo.tidalDebt;
 
         if (poolInfo.totalShare == 0) {          
             poolInfo.amountPerShare = AMOUNT_PER_SHARE;
-            poolInfo.totalShare = amount_.mul(SHARE_UNITS).div(AMOUNT_PER_SHARE);
+            poolInfo.totalShare = amount_ * SHARE_UNITS / AMOUNT_PER_SHARE;
             userInfo.share = poolInfo.totalShare;
         } else {
             uint256 shareToAdd =
-                amount_.mul(SHARE_UNITS).div(poolInfo.amountPerShare);
-            poolInfo.totalShare = poolInfo.totalShare.add(shareToAdd);
-            userInfo.share = userInfo.share.add(shareToAdd);
+                amount_ * SHARE_UNITS / poolInfo.amountPerShare;
+            poolInfo.totalShare += shareToAdd;
+            userInfo.share += shareToAdd;
         }
 
         // Updates tidalDebt.
-        userInfo.tidalDebt = poolInfo.accTidalPerShare.mul(
-            userInfo.share).div(SHARE_UNITS);
+        userInfo.tidalDebt = poolInfo.accTidalPerShare *
+            userInfo.share / SHARE_UNITS;
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).deposit(
@@ -428,9 +415,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         address who_
     ) external view returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
-        return poolInfo.amountPerShare.mul(
-            userInfo.share.sub(
-                userInfo.pendingWithdrawShare)).div(SHARE_UNITS);
+        return poolInfo.amountPerShare * (
+            userInfo.share - userInfo.pendingWithdrawShare) / SHARE_UNITS;
     }
 
     // Existing sellers can request to withdraw from the pool by shares.
@@ -442,7 +428,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         UserInfo storage userInfo = userInfoMap[_msgSender()];
 
         require(userInfo.share >=
-            userInfo.pendingWithdrawShare.add(share_), "Not enough");
+            userInfo.pendingWithdrawShare + share_, "Not enough");
 
         withdrawRequestMap[_msgSender()].push(WithdrawRequest({
             share: share_,
@@ -452,16 +438,15 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             succeeded: false
         }));
 
-        userInfo.pendingWithdrawShare = userInfo.pendingWithdrawShare.add(
-            share_);
+        userInfo.pendingWithdrawShare += share_;
 
         uint256 week = getCurrentWeek();
-        poolWithdrawMap[week] = poolWithdrawMap[week].add(share_);
+        poolWithdrawMap[week] += share_;
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).withdraw(
                 _msgSender(),
-                withdrawRequestMap[_msgSender()].length.sub(1),
+                withdrawRequestMap[_msgSender()].length - 1,
                 share_
             );
         }
@@ -483,8 +468,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         uint256 unlockTime = getUnlockTime(request.time, withdrawWaitWeeks1);
         require(getNow() > unlockTime, "Not ready yet");
 
-        poolInfo.pendingWithdrawShare = poolInfo.pendingWithdrawShare.add(
-            request.share);
+        poolInfo.pendingWithdrawShare += request.share;
 
         request.pending = true;
 
@@ -509,7 +493,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         require(!request.executed, "Already executed");
         require(request.pending, "Not pending yet");
 
-        uint256 waitWeeks = withdrawWaitWeeks1.add(withdrawWaitWeeks2);
+        uint256 waitWeeks = withdrawWaitWeeks1 + withdrawWaitWeeks2;
         uint256 unlockTime = getUnlockTime(request.time, waitWeeks);
         require(getNow() > unlockTime, "Not ready yet");
 
@@ -517,26 +501,24 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
         if (userInfo.share >= request.share) {
             // Updates tidalPending.
-            uint256 accAmount = poolInfo.accTidalPerShare.mul(
-                userInfo.share).div(SHARE_UNITS);
-            userInfo.tidalPending = userInfo.tidalPending.add(
-                accAmount.sub(userInfo.tidalDebt));
+            uint256 accAmount = poolInfo.accTidalPerShare *
+                userInfo.share / SHARE_UNITS;
+            userInfo.tidalPending += accAmount - userInfo.tidalDebt;
 
-            userInfo.share = userInfo.share.sub(request.share);
-            poolInfo.totalShare = poolInfo.totalShare.sub(request.share);
+            userInfo.share -= request.share;
+            poolInfo.totalShare -= request.share;
 
             // Updates tidalDebt.
-            userInfo.tidalDebt = poolInfo.accTidalPerShare.mul(
-                userInfo.share).div(SHARE_UNITS);
+            userInfo.tidalDebt = poolInfo.accTidalPerShare *
+                userInfo.share / SHARE_UNITS;
 
-            uint256 amount = poolInfo.amountPerShare.mul(
-                request.share).div(SHARE_UNITS);
+            uint256 amount = poolInfo.amountPerShare *
+                request.share / SHARE_UNITS;
 
             // A withdrawFee goes to everyone.
-            uint256 fee = amount.mul(withdrawFee).div(RATIO_BASE);
-            IERC20(baseToken).safeTransfer(who_, amount.sub(fee));
-            poolInfo.amountPerShare = poolInfo.amountPerShare.add(
-                fee.mul(SHARE_UNITS).div(poolInfo.totalShare));
+            uint256 fee = amount * withdrawFee / RATIO_BASE;
+            IERC20(baseToken).safeTransfer(who_, amount - fee);
+            poolInfo.amountPerShare += fee * SHARE_UNITS / poolInfo.totalShare;
 
             request.succeeded = true;
         } else {
@@ -546,10 +528,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         request.executed = true;
 
         // Reduce pendingWithdrawShare.
-        userInfo.pendingWithdrawShare = userInfo.pendingWithdrawShare.sub(
-            request.share);
-        poolInfo.pendingWithdrawShare = poolInfo.pendingWithdrawShare.sub(
-            request.share);
+        userInfo.pendingWithdrawShare -= request.share;
+        poolInfo.pendingWithdrawShare -= request.share;
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).withdrawReady(
@@ -571,15 +551,14 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         IERC20(tidalToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
 
-        poolInfo.accTidalPerShare = poolInfo.accTidalPerShare.add(
-            amount_.mul(SHARE_UNITS).div(poolInfo.totalShare));
+        poolInfo.accTidalPerShare +=
+            amount_ * SHARE_UNITS / poolInfo.totalShare;
     }
 
     function getUserTidalAmount(address who_) external view returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
-        return poolInfo.accTidalPerShare.mul(
-            userInfo.share).div(SHARE_UNITS).add(
-                userInfo.tidalPending).sub(userInfo.tidalDebt);
+        return poolInfo.accTidalPerShare * userInfo.share / SHARE_UNITS +
+            userInfo.tidalPending - userInfo.tidalDebt;
     }
 
     // Sellers can withdraw TIDAL, which are bonuses, from the pool.
@@ -587,10 +566,10 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         require(enabled, "Not enabled");
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
-        uint256 accAmount = poolInfo.accTidalPerShare.mul(
-            userInfo.share).div(SHARE_UNITS);
-        uint256 tidalAmount = userInfo.tidalPending.add(
-            accAmount).sub(userInfo.tidalDebt);
+        uint256 accAmount = poolInfo.accTidalPerShare *
+            userInfo.share / SHARE_UNITS;
+        uint256 tidalAmount = userInfo.tidalPending +
+            accAmount - userInfo.tidalDebt;
 
         IERC20(tidalToken).safeTransfer(_msgSender(), tidalAmount);
 
@@ -731,10 +710,10 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
         CommitteeRequest storage cr = committeeRequestArray[requestIndex_];
 
-        require(getNow() < cr.time.add(VOTE_EXPIRATION),
+        require(getNow() < cr.time + VOTE_EXPIRATION,
                 "Already expired");
         require(!cr.executed, "Already executed");
-        cr.vote = cr.vote.add(1);
+        cr.vote += 1;
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).vote(
@@ -752,7 +731,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         CommitteeRequest storage cr = committeeRequestArray[requestIndex_];
 
         require(cr.vote >= committeeThreshold, "Not enough votes");
-        require(getNow() < cr.time.add(VOTE_EXPIRATION),
+        require(getNow() < cr.time + VOTE_EXPIRATION,
                 "Already expired");
         require(!cr.executed, "Already executed");
 
@@ -789,8 +768,8 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
     ) private {
         IERC20(baseToken).safeTransfer(receipient_, amount_);
 
-        poolInfo.amountPerShare = poolInfo.amountPerShare.sub(
-            amount_.mul(SHARE_UNITS).div(poolInfo.totalShare));
+        poolInfo.amountPerShare -=
+            amount_ * SHARE_UNITS / poolInfo.totalShare;
     }
 
     function _executeChangePoolManager(address poolManager_) private {
@@ -807,9 +786,9 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         require(committeeIndexPlusOne[who_] > 0,
                 "Non-existing committee member");
         if (committeeIndexPlusOne[who_] != committeeArray.length) {
-            address lastOne = committeeArray[committeeArray.length.sub(1)];
+            address lastOne = committeeArray[committeeArray.length - 1];
             committeeIndexPlusOne[lastOne] = committeeIndexPlusOne[who_];
-            committeeArray[committeeIndexPlusOne[who_].sub(1)] = lastOne;
+            committeeArray[committeeIndexPlusOne[who_] - 1] = lastOne;
         }
 
         committeeIndexPlusOne[who_] = 0;
@@ -833,16 +812,16 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             return new CommitteeRequest[](0);
         }
 
-        uint256 leftSideOffset = committeeRequestArray.length.sub(offset_);
+        uint256 leftSideOffset = committeeRequestArray.length - offset_;
         CommitteeRequest[] memory result =
             new CommitteeRequest[](
                 leftSideOffset < limit_ ? leftSideOffset : limit_);
 
         uint256 i = 0;
         while (i < limit_ && leftSideOffset > 0) {
-            leftSideOffset = leftSideOffset.sub(1);
+            leftSideOffset -= 1;
             result[i] = committeeRequestArray[leftSideOffset];
-            i = i.add(1);
+            i += 1;
         }
 
         return result;
