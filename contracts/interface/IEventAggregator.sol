@@ -57,9 +57,8 @@ interface IEventAggregator {
 
     function changeCommitteeThreshold(uint256 threshold_) external;
 
-    function vote(
-        uint256 requestIndex_,
-        bool support_
+    function voteAndSupport(
+        uint256 requestIndex_
     ) external;
 
     function execute(uint256 requestIndex_) external;

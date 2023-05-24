@@ -306,8 +306,8 @@ contract('Pool', ([
 
         // Now vote and execute.
         // Two out of three voters support the claim.
-        await this.Pool.vote(0, 1, {from: voter0});
-        await this.Pool.vote(0, 1, {from: voter1});
+        await this.Pool.voteAndSupport(0, {from: voter0});
+        await this.Pool.voteAndSupport(0, {from: voter1});
         await this.Pool.execute(0, {from: anyone});
 
         // Executing again will revert.
@@ -401,8 +401,8 @@ contract('Pool', ([
 
         // Now vote and execute.
         // Two out of three voters support the claim.
-        await this.Pool.vote(0, 1, {from: voter0});
-        await this.Pool.vote(0, 1, {from: voter1});
+        await this.Pool.voteAndSupport(0, {from: voter0});
+        await this.Pool.voteAndSupport(0, {from: voter1});
         await this.Pool.execute(0, {from: anyone});
 
         // Now voter0 is the new poolManager.
@@ -412,8 +412,8 @@ contract('Pool', ([
         // ** Add seller0 into committee.
         await this.Pool.addToCommittee(seller0, {from: voter1});
 
-        await this.Pool.vote(1, 1, {from: voter0});
-        await this.Pool.vote(1, 1, {from: voter1});
+        await this.Pool.voteAndSupport(1, {from: voter0});
+        await this.Pool.voteAndSupport(1, {from: voter1});
         await this.Pool.execute(1, {from: anyone});
 
         const indexOfCommittee0 = await this.Pool.committeeIndexPlusOne(seller0);
@@ -422,8 +422,8 @@ contract('Pool', ([
         // ** Remove voter0 from committee.
         await this.Pool.removeFromCommittee(voter0, {from: seller0});
 
-        await this.Pool.vote(2, 1, {from: seller0});
-        await this.Pool.vote(2, 1, {from: voter1});
+        await this.Pool.voteAndSupport(2, {from: seller0});
+        await this.Pool.voteAndSupport(2, {from: voter1});
         await this.Pool.execute(2, {from: anyone});
 
         const indexOfCommittee1 = await this.Pool.committeeIndexPlusOne(voter0);
@@ -432,8 +432,8 @@ contract('Pool', ([
         // ** Add seller1 into committee.
         await this.Pool.addToCommittee(seller1, {from: voter1});
     
-        await this.Pool.vote(3, 1, {from: seller0});
-        await this.Pool.vote(3, 1, {from: voter1});
+        await this.Pool.voteAndSupport(3, {from: seller0});
+        await this.Pool.voteAndSupport(3, {from: voter1});
         await this.Pool.execute(3, {from: anyone});
 
         const indexOfCommittee2 = await this.Pool.committeeIndexPlusOne(seller1);
@@ -442,8 +442,8 @@ contract('Pool', ([
         // ** Change threshold to 3.
         await this.Pool.changeCommitteeThreshold(3, {from: seller0});
 
-        await this.Pool.vote(4, 1, {from: seller0});
-        await this.Pool.vote(4, 1, {from: seller1});
+        await this.Pool.voteAndSupport(4, {from: seller0});
+        await this.Pool.voteAndSupport(4, {from: seller1});
         await this.Pool.execute(4, {from: anyone});
 
         const threshold = await this.Pool.committeeThreshold();

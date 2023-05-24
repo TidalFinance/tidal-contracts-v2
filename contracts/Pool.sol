@@ -712,14 +712,9 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     }
 
     // Committee members can vote on any of the above 5 types of operations.
-    function vote(
-        uint256 requestIndex_,
-        bool support_
+    function voteAndSupport(
+        uint256 requestIndex_
     ) external onlyCommittee {
-        if (!support_) {
-            return;
-        }
-
         require(requestIndex_ < committeeRequestArray.length, "Invalid index");
 
         require(!committeeVote[_msgSender()][requestIndex_],
@@ -734,9 +729,8 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         cr.vote += 1;
 
         if (eventAggregator != address(0)) {
-            IEventAggregator(eventAggregator).vote(
-                requestIndex_,
-                support_
+            IEventAggregator(eventAggregator).voteAndSupport(
+                requestIndex_
             );
         }
     }

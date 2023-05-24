@@ -89,9 +89,8 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         uint256 threshold_
     );
 
-    event Vote(
-        uint256 requestIndex_,
-        bool support_
+    event VoteAndSupport(
+        uint256 requestIndex_
     );
 
     event Execute(
@@ -227,13 +226,11 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         );
     }
 
-    function vote(
-        uint256 requestIndex_,
-        bool support_
+    function voteAndSupport(
+        uint256 requestIndex_
     ) external onlyPool {
-        emit Vote(
-            requestIndex_,
-            support_
+        emit VoteAndSupport(
+            requestIndex_
         );
     }
 
