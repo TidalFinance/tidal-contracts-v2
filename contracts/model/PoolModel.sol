@@ -72,11 +72,16 @@ contract PoolModel {
     // week => share
     mapping(uint256 => uint256) public poolWithdrawMap;
 
+    enum WithdrawRequestStatus {
+        Created,
+        Pending,
+        Executed
+    }
+
     struct WithdrawRequest {
         uint256 share;
         uint256 time;
-        bool pending;
-        bool executed;
+        WithdrawRequestStatus status;
         bool succeeded;
     }
 

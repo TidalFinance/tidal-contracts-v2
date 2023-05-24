@@ -450,8 +450,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         withdrawRequestMap[_msgSender()].push(WithdrawRequest({
             share: share_,
             time: getNow(),
-            pending: false,
-            executed: false,
+            status: WithdrawRequestStatus.Created,
             succeeded: false
         }));
 
@@ -480,14 +479,15 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         require(index_ < withdrawRequestMap[who_].length, "No index");
 
         WithdrawRequest storage request = withdrawRequestMap[who_][index_];
-        require(!request.pending, "Already pending");
+        require(request.status == WithdrawRequestStatus.Created,
+                "Wrong status");
 
         uint256 unlockTime = getUnlockTime(request.time, withdrawWaitWeeks1);
         require(getNow() > unlockTime, "Not ready yet");
 
         poolInfo.pendingWithdrawShare += request.share;
 
-        request.pending = true;
+        request.status = WithdrawRequestStatus.Pending;
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).withdrawPending(
@@ -507,8 +507,8 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         require(index_ < withdrawRequestMap[who_].length, "No index");
 
         WithdrawRequest storage request = withdrawRequestMap[who_][index_];
-        require(!request.executed, "Already executed");
-        require(request.pending, "Not pending yet");
+        require(request.status == WithdrawRequestStatus.Pending,
+                "Wrong status");
 
         uint256 waitWeeks = withdrawWaitWeeks1 + withdrawWaitWeeks2;
         uint256 unlockTime = getUnlockTime(request.time, waitWeeks);
@@ -542,7 +542,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             request.succeeded = false;
         }
 
-        request.executed = true;
+        request.status = WithdrawRequestStatus.Executed;
 
         // Reduce pendingWithdrawShare.
         userInfo.pendingWithdrawShare -= request.share;
