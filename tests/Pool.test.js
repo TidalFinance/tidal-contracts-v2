@@ -293,12 +293,6 @@ contract('Pool', ([
             +(await this.Pool.getCommitteeRequestLength({from: anyone})).valueOf();
         assert.equal(committeeRequestLength, 1);
 
-        // Without voting, execution should revert.
-        await expectRevert(
-            this.Pool.execute(0, {from: anyone}),
-            "Not enough votes"
-        );
-
         // Move forward one more day to week2.
         await this.Pool.setTimeExtra(3600 * 24 * 7 * 2);
         await this.Pool.addPremium(0, {from: anyone});
@@ -308,13 +302,6 @@ contract('Pool', ([
         // Two out of three voters support the claim.
         await this.Pool.voteAndSupport(0, {from: voter0});
         await this.Pool.voteAndSupport(0, {from: voter1});
-        await this.Pool.execute(0, {from: anyone});
-
-        // Executing again will revert.
-        await expectRevert(
-            this.Pool.execute(0, {from: anyone}),
-            "Already executed"
-        );
 
         // Treasury receives 70,000 USDC.
         const treaturyBalance =
@@ -393,17 +380,10 @@ contract('Pool', ([
             +(await this.Pool.getCommitteeRequestLength({from: anyone})).valueOf();
         assert.equal(committeeRequestLength, 1);
 
-        // Without voting, execution should revert.
-        await expectRevert(
-            this.Pool.execute(0, {from: anyone}),
-            "Not enough votes"
-        );
-
         // Now vote and execute.
         // Two out of three voters support the claim.
         await this.Pool.voteAndSupport(0, {from: voter0});
         await this.Pool.voteAndSupport(0, {from: voter1});
-        await this.Pool.execute(0, {from: anyone});
 
         // Now voter0 is the new poolManager.
         const poolManagerAddress = await this.Pool.poolManager();
@@ -414,7 +394,6 @@ contract('Pool', ([
 
         await this.Pool.voteAndSupport(1, {from: voter0});
         await this.Pool.voteAndSupport(1, {from: voter1});
-        await this.Pool.execute(1, {from: anyone});
 
         const indexOfCommittee0 = await this.Pool.committeeIndexPlusOne(seller0);
         assert.equal(indexOfCommittee0, 3);
@@ -424,7 +403,6 @@ contract('Pool', ([
 
         await this.Pool.voteAndSupport(2, {from: seller0});
         await this.Pool.voteAndSupport(2, {from: voter1});
-        await this.Pool.execute(2, {from: anyone});
 
         const indexOfCommittee1 = await this.Pool.committeeIndexPlusOne(voter0);
         assert.equal(indexOfCommittee1, 0);
@@ -434,7 +412,6 @@ contract('Pool', ([
     
         await this.Pool.voteAndSupport(3, {from: seller0});
         await this.Pool.voteAndSupport(3, {from: voter1});
-        await this.Pool.execute(3, {from: anyone});
 
         const indexOfCommittee2 = await this.Pool.committeeIndexPlusOne(seller1);
         assert.equal(indexOfCommittee0, 3);
@@ -444,7 +421,6 @@ contract('Pool', ([
 
         await this.Pool.voteAndSupport(4, {from: seller0});
         await this.Pool.voteAndSupport(4, {from: seller1});
-        await this.Pool.execute(4, {from: anyone});
 
         const threshold = await this.Pool.committeeThreshold();
         assert.equal(threshold, 3);

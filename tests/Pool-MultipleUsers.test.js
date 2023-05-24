@@ -281,7 +281,6 @@ contract('Pool', ([
         await this.Pool.claim(0, decToHex(20000), owner, {from: poolManager});
         await this.Pool.voteAndSupport(0, {from: voter0});
         await this.Pool.voteAndSupport(0, {from: voter1});
-        await this.Pool.execute(0, {from: anyone});
 
         // seller0 (after payout): 3759.3323
         // seller1 (after payout): 7382.8538
