@@ -59,6 +59,7 @@ contract('Pool', ([
             20000, // 2% withdrawFee
             50000, // 5% managementFee1
             30000,  // 3% managementFee2
+            10000,  // minimumDepositAmount_: 1e4
             1,
             "",
             "",

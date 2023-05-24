@@ -20,6 +20,9 @@ contract PoolModel {
     // managementFee2 is a percentage and charged as tokens.
     uint256 public managementFee2;
 
+    // Minimum deposit amount.
+    uint256 public minimumDepositAmount;
+
     bool public enabled;
     string public name;
     string public terms;

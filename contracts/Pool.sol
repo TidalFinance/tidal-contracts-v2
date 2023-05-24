@@ -105,6 +105,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         uint256 withdrawFee_,
         uint256 managementFee1_,
         uint256 managementFee2_,
+        uint256 minimumDepositAmount_,
         bool enabled_,
         string memory name_,
         string memory terms_
@@ -115,6 +116,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         withdrawFee_ = withdrawFee;
         managementFee1_ = managementFee1;
         managementFee2_ = managementFee2;
+        minimumDepositAmount_ = minimumDepositAmount;
         enabled_ = enabled;
         name_ = name;
         terms_ = terms;
@@ -127,6 +129,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         uint256 withdrawFee_,
         uint256 managementFee1_,
         uint256 managementFee2_,
+        uint256 minimumDepositAmount_,
         bool enabled_,
         string calldata name_,
         string calldata terms_
@@ -137,6 +140,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         withdrawFee = withdrawFee_;
         managementFee1 = managementFee1_;
         managementFee2 = managementFee2_;
+        minimumDepositAmount = minimumDepositAmount_;
         enabled = enabled_;
         name = name_;
         terms = terms_;
@@ -389,7 +393,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     ) external noReenter {
         require(enabled, "Not enabled");
 
-        require(amount_ >= AMOUNT_PER_SHARE / 1000000, "Less than minimum");
+        require(amount_ >= minimumDepositAmount, "Less than minimum");
 
         IERC20Upgradeable(baseToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
