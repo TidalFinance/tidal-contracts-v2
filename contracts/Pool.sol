@@ -688,6 +688,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     function changeCommitteeThreshold(
         uint256 threshold_
     ) external onlyCommittee {
+        require(threshold_ >= 2, "Invalid threshold");
         require(threshold_ <= committeeArray.length,
                 "Threshold more than member count");
 
@@ -796,6 +797,8 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     }
 
     function _executeRemoveFromCommittee(address who_) private {
+        require(committeeArray.length > committeeThreshold,
+                "Not enough members");
         require(committeeIndexPlusOne[who_] > 0,
                 "Non-existing committee member");
         if (committeeIndexPlusOne[who_] != committeeArray.length) {
@@ -810,6 +813,8 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
     function _executeChangeCommitteeThreshold(uint256 threshold_) private {
         require(threshold_ >= 2, "Invalid threshold");
+        require(threshold_ <= committeeArray.length,
+                "Threshold more than member count");
         committeeThreshold = threshold_;
     }
 
