@@ -89,6 +89,7 @@ contract('Pool', ([
         await this.Pool.buy(
             0,
             decToHex(10000),
+            decToHex(1000),
             currentWeek + 1,
             currentWeek + 11,
             "notes",
@@ -174,6 +175,7 @@ contract('Pool', ([
         await this.Pool.buy(
             0,
             decToHex(20000),
+            decToHex(1800),
             currentWeek + 4,
             currentWeek + 13,
             "notes",

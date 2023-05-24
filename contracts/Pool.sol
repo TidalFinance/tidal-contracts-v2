@@ -246,6 +246,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     function buy(
         uint256 policyIndex_,
         uint256 amount_,
+        uint256 maxPremium_,
         uint256 fromWeek_,
         uint256 toWeek_,
         string calldata notes_
@@ -260,6 +261,8 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         Policy storage policy = policyArray[policyIndex_];
         uint256 premium = amount_ * policy.weeklyPremium / RATIO_BASE;
         uint256 allPremium = premium * (toWeek_ - fromWeek_);
+
+        require(allPremium <= maxPremium_, "Exceeds maxPremium_");
 
         uint256 maximumToCover = poolInfo.amountPerShare * (
             poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS *
