@@ -150,6 +150,8 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         string calldata terms_
     ) external onlyPoolManager {
         require(index_ < policyArray.length, "Invalid index");
+        require(collateralRatio_ > 0, "Should be non-zero");
+        require(weeklyPremium_ < RATIO_BASE, "Should be less than 100%");
 
         Policy storage policy = policyArray[index_];
         policy.collateralRatio = collateralRatio_;
@@ -164,6 +166,9 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         string calldata name_,
         string calldata terms_
     ) external onlyPoolManager {
+        require(collateralRatio_ > 0, "Should be non-zero");
+        require(weeklyPremium_ < RATIO_BASE, "Should be less than 100%");
+
         policyArray.push(Policy({
             collateralRatio: collateralRatio_,
             weeklyPremium: weeklyPremium_,
