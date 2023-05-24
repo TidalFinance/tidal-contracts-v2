@@ -98,7 +98,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
     // ** Pool and policy config.
 
-    function getPool() external view returns(
+    function getPool() external view noReenterView returns(
         uint256 withdrawWaitWeeks1_,
         uint256 withdrawWaitWeeks2_,
         uint256 policyWeeks_,
@@ -177,11 +177,11 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         }));
     }
 
-    function getPolicyArrayLength() external view returns(uint256) {
+    function getPolicyArrayLength() external view noReenterView returns(uint256) {
         return policyArray.length;
     }
 
-    function getCollateralAmount() external view returns(uint256) {
+    function getCollateralAmount() external view noReenterView returns(uint256) {
         return poolInfo.amountPerShare * (
             poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS;
     }
@@ -219,12 +219,12 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
     function getCurrentAvailableCapacity(
         uint256 policyIndex_
-    ) external view returns(uint256) {
+    ) external view noReenterView returns(uint256) {
         uint256 w = getCurrentWeek();
         return getAvailableCapacity(policyIndex_, w);
     }
 
-    function getTotalAvailableCapacity() external view returns(uint256) {
+    function getTotalAvailableCapacity() external view noReenterView returns(uint256) {
         uint256 w = getCurrentWeek();
 
         uint256 total = 0;
@@ -235,7 +235,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         return total;
     }
 
-    function getUserBaseAmount(address who_) external view returns(uint256) {
+    function getUserBaseAmount(address who_) external view noReenterView returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
         return poolInfo.amountPerShare * userInfo.share / SHARE_UNITS;
     }
@@ -426,7 +426,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
     function getUserAvailableWithdrawAmount(
         address who_
-    ) external view returns(uint256) {
+    ) external view noReenterView returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
         return poolInfo.amountPerShare * (
             userInfo.share - userInfo.pendingWithdrawShare) / SHARE_UNITS;
@@ -435,7 +435,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     // Existing sellers can request to withdraw from the pool by shares.
     function withdraw(
         uint256 share_
-    ) external {
+    ) external noReenter {
         require(enabled, "Not enabled");
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
@@ -470,7 +470,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     function withdrawPending(
         address who_,
         uint256 index_
-    ) external {
+    ) external noReenter {
         require(enabled, "Not enabled");
 
         require(index_ < withdrawRequestMap[who_].length, "No index");
@@ -555,7 +555,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
     function withdrawRequestCount(
         address who_
-    ) external view returns(uint256) {
+    ) external view noReenterView returns(uint256) {
         return withdrawRequestMap[who_].length;
     }
 
@@ -568,7 +568,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             amount_ * SHARE_UNITS / poolInfo.totalShare;
     }
 
-    function getUserTidalAmount(address who_) external view returns(uint256) {
+    function getUserTidalAmount(address who_) external view noReenterView returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
         return poolInfo.accTidalPerShare * userInfo.share / SHARE_UNITS +
             userInfo.tidalPending - userInfo.tidalDebt;
@@ -818,14 +818,14 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         committeeThreshold = threshold_;
     }
 
-    function getCommitteeRequestLength() external view returns(uint256) {
+    function getCommitteeRequestLength() external view noReenterView returns(uint256) {
         return committeeRequestArray.length;
     }
 
     function getCommitteeRequestArray(
         uint256 limit_,
         uint256 offset_
-    ) external view returns(CommitteeRequest[] memory) {
+    ) external view noReenterView returns(CommitteeRequest[] memory) {
         if (committeeRequestArray.length <= offset_) {
             return new CommitteeRequest[](0);
         }

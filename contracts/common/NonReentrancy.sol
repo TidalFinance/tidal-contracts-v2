@@ -14,4 +14,9 @@ contract NonReentrancy {
         _;
         islocked = 0;
     }
+
+    modifier noReenterView() {
+        require(islocked == 0, 'Tidal: LOCKED');
+        _;
+    }
 }
