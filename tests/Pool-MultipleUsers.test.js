@@ -48,7 +48,7 @@ contract('Pool', ([
         await this.USDC.transfer(buyer0, decToHex(10000), {from: owner});
         await this.USDC.transfer(buyer1, decToHex(20000), {from: owner});
 
-        this.Pool = await Pool.new({from: owner});
+        this.Pool = await Pool.new(true, {from: owner});
         await this.Pool.initialize(
             this.USDC.address, this.Tidal.address, true,
             poolManager, [voter0, voter1], {from: owner});

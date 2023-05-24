@@ -2,24 +2,29 @@
 pragma solidity 0.8.10;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import "./model/PoolModel.sol";
 import "./common/NonReentrancy.sol";
 import "./interface/IEventAggregator.sol";
 
-contract Pool is Initializable, NonReentrancy, Context, PoolModel {
+contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
-    using SafeERC20 for IERC20;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
  
     uint256 constant SHARE_UNITS = 1e18;
     uint256 constant AMOUNT_PER_SHARE = 1e18;
     uint256 constant VOTE_EXPIRATION = 3 days;
     uint256 constant RATIO_BASE = 1e6;
     uint256 constant TIME_OFFSET = 4 days;
+
+    constructor(bool isTest_) {
+        if (!isTest_) {
+            _disableInitializers();
+        }
+    }
 
     function initialize(
         address baseToken_,
@@ -268,7 +273,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             entry.refunded = false;
         }
 
-        IERC20(baseToken).safeTransferFrom(
+        IERC20Upgradeable(baseToken).safeTransferFrom(
             _msgSender(), address(this), allPremium);
 
         if (eventAggregator != address(0)) {
@@ -333,7 +338,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             poolManagerInfo.share / SHARE_UNITS;
 
         // Distributes fee2.
-        IERC20(baseToken).safeTransfer(poolManager, fee2);
+        IERC20Upgradeable(baseToken).safeTransfer(poolManager, fee2);
 
         incomeMap[policyIndex_][week] = 0;
     }
@@ -357,7 +362,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
             (coverage.premium - amountToRefund) / coverage.premium;
         coverage.refunded = true;
 
-        IERC20(baseToken).safeTransfer(who_, amountToRefund);
+        IERC20Upgradeable(baseToken).safeTransfer(who_, amountToRefund);
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).refund(
@@ -378,7 +383,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
         require(amount_ >= AMOUNT_PER_SHARE / 1000000, "Less than minimum");
 
-        IERC20(baseToken).safeTransferFrom(
+        IERC20Upgradeable(baseToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
@@ -517,7 +522,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
             // A withdrawFee goes to everyone.
             uint256 fee = amount * withdrawFee / RATIO_BASE;
-            IERC20(baseToken).safeTransfer(who_, amount - fee);
+            IERC20Upgradeable(baseToken).safeTransfer(who_, amount - fee);
             poolInfo.amountPerShare += fee * SHARE_UNITS / poolInfo.totalShare;
 
             request.succeeded = true;
@@ -548,7 +553,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
 
     // Anyone can add tidal to the pool as incentative any time.
     function addTidal(uint256 amount_) external noReenter {
-        IERC20(tidalToken).safeTransferFrom(
+        IERC20Upgradeable(tidalToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
 
         poolInfo.accTidalPerShare +=
@@ -571,7 +576,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         uint256 tidalAmount = userInfo.tidalPending +
             accAmount - userInfo.tidalDebt;
 
-        IERC20(tidalToken).safeTransfer(_msgSender(), tidalAmount);
+        IERC20Upgradeable(tidalToken).safeTransfer(_msgSender(), tidalAmount);
 
         userInfo.tidalPending = 0;
         userInfo.tidalDebt = accAmount;
@@ -766,7 +771,7 @@ contract Pool is Initializable, NonReentrancy, Context, PoolModel {
         uint256 amount_,
         address receipient_
     ) private {
-        IERC20(baseToken).safeTransfer(receipient_, amount_);
+        IERC20Upgradeable(baseToken).safeTransfer(receipient_, amount_);
 
         poolInfo.amountPerShare -=
             amount_ * SHARE_UNITS / poolInfo.totalShare;

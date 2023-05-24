@@ -10,6 +10,13 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
 
     mapping(address => bool) public poolMap;
 
+    // No additional state variables should be added here.
+    // We may upgrade this file but only to add events.
+
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize() public initializer {
         __Ownable_init();
     }

@@ -122,4 +122,8 @@ contract PoolModel {
 
     // Event aggregator.
     address eventAggregator;
+
+    // This is a storage gap in case more state variables will be added
+    // in the future.
+    uint256[49] __gap;
 }
