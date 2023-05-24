@@ -3,6 +3,15 @@ pragma solidity 0.8.10;
 
 interface IEventAggregator {
 
+    function setEventAggregator(
+        address oldAggregator_,
+        address newAggregator_
+    ) external;
+
+    function enablePool(
+        bool enabled_
+    ) external;
+
     function buy(
         address who_,
         uint256 policyIndex_,
@@ -61,5 +70,9 @@ interface IEventAggregator {
         uint256 requestIndex_
     ) external;
 
-    function execute(uint256 requestIndex_) external;
+    function execute(
+        uint256 requestIndex_,
+        uint256 operation_,
+        bytes calldata data_
+    ) external;
 }

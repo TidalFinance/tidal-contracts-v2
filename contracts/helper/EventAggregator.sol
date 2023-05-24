@@ -21,6 +21,17 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         __Ownable_init();
     }
 
+    event SetEventAggregator(
+        address indexed pool_,
+        address oldAggregator_,
+        address newAggregator_
+    );
+
+    event EnablePool(
+        address indexed pool_,
+        bool enabled_
+    );
+
     // Events.
     event Buy(
         address indexed pool_,
@@ -60,41 +71,50 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
 
     // At most 3 indexed arguments is allowed by solidity
     event Refund(
-        address pool_,
+        address indexed pool_,
         uint256 indexed policyIndex_,
         uint256 indexed week_,
-        address indexed who_,
+        address who_,
         uint256 amount_
     );
 
     event Claim(
+        address indexed pool_,
         uint256 policyIndex_,
         uint256 amount_,
         address receipient_
     );
 
     event ChangePoolManager(
+        address indexed pool_,
         address poolManager_
     );
 
     event AddToCommittee(
+        address indexed pool_,
         address who_
     );
 
     event RemoveFromCommittee(
+        address indexed pool_,
         address who_
     );
 
     event ChangeCommitteeThreshold(
+        address indexed pool_,
         uint256 threshold_
     );
 
     event VoteAndSupport(
-        uint256 requestIndex_
+        address indexed pool_,
+        uint256 indexed requestIndex_
     );
 
     event Execute(
-        uint256 requestIndex_
+        address indexed pool_,
+        uint256 indexed requestIndex_,
+        uint256 operation_,
+        bytes data_
     );
 
     function setPool(address pool_, bool on_) external onlyOwner {
@@ -105,6 +125,26 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         require(poolMap[msg.sender], "Only pool");
         _;
     } 
+
+    function setEventAggregator(
+        address oldAggregator_,
+        address newAggregator_
+    ) external onlyPool {
+        emit SetEventAggregator(
+            msg.sender,
+            oldAggregator_,
+            newAggregator_
+        );
+    }
+
+    function enablePool(
+        bool enabled_
+    ) external onlyPool {
+        emit EnablePool(
+            msg.sender,
+            enabled_
+        );
+    }
 
     function buy(
         address who_,
@@ -194,6 +234,7 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         address receipient_
     ) external onlyPool {
         emit Claim(
+            msg.sender,
             policyIndex_,
             amount_,
             receipient_
@@ -204,24 +245,28 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         address poolManager_
     ) external onlyPool {
         emit ChangePoolManager(
+            msg.sender,
             poolManager_
         );
     }
 
     function addToCommittee(address who_) external onlyPool {
         emit AddToCommittee(
+            msg.sender,
             who_
         );
     }
 
     function removeFromCommittee(address who_) external onlyPool {
         emit RemoveFromCommittee(
+            msg.sender,
             who_
         );
     }
 
     function changeCommitteeThreshold(uint256 threshold_) external onlyPool {
         emit ChangeCommitteeThreshold(
+            msg.sender,
             threshold_
         );
     }
@@ -230,13 +275,21 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         uint256 requestIndex_
     ) external onlyPool {
         emit VoteAndSupport(
+            msg.sender,
             requestIndex_
         );
     }
 
-    function execute(uint256 requestIndex_) external onlyPool {
+    function execute(
+        uint256 requestIndex_,
+        uint256 operation_,
+        bytes calldata data_
+    ) external onlyPool {
         emit Execute(
-            requestIndex_
+            msg.sender,
+            requestIndex_,
+            operation_,
+            data_
         );
     }
 }

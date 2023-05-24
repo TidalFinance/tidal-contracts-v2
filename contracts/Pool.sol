@@ -92,7 +92,25 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
     // ** Event aggregator
 
-    function setEventAggregator(address eventAggregator_) external onlyPoolManager {
+    function setEventAggregator(
+        address eventAggregator_
+    ) external onlyPoolManager {
+        require(eventAggregator_ != eventAggregator, "Value no difference");
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).setEventAggregator(
+                eventAggregator,
+                eventAggregator_
+            );
+        }
+
+        if (eventAggregator_ != address(0)) {
+            IEventAggregator(eventAggregator_).setEventAggregator(
+                eventAggregator,
+                eventAggregator_
+            );
+        }
+
         eventAggregator = eventAggregator_;
     }
 
@@ -599,6 +617,12 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     // Pool manager can enable or disable the pool in emergency.
     function enablePool(bool enabled_) external onlyPoolManager {
         enabled = enabled_;
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).enablePool(
+                enabled_
+            );
+        }
     }
 
     // ** Claim (and other type of requests), vote, and execute.
@@ -770,7 +794,9 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).execute(
-                requestIndex_
+                requestIndex_,
+                uint256(cr.operation),
+                cr.data
             );
         }
     }
