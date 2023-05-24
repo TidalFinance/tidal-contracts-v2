@@ -603,7 +603,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
     // ** Claim (and other type of requests), vote, and execute.
 
-    // ** Operation #0, claim
+    // ** Operation #1, claim
     function claim(
         uint256 policyIndex_,
         uint256 amount_,
@@ -613,7 +613,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             time: getNow(),
             vote: 0,
             executed: false,
-            operation: 0,
+            operation: CommitteeRequestType.Claim,
             data: abi.encode(amount_, receipient_)
         }));
 
@@ -626,7 +626,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         }
     }
 
-    // ** Operation #1, changePoolManager
+    // ** Operation #2, changePoolManager
     function changePoolManager(
         address poolManager_
     ) external onlyCommittee {
@@ -634,7 +634,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             time: getNow(),
             vote: 0,
             executed: false,
-            operation: 1,
+            operation: CommitteeRequestType.ChangePoolManager,
             data: abi.encode(poolManager_)
         }));
 
@@ -645,7 +645,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         }
     }
 
-    // ** Operation #2, addToCommittee
+    // ** Operation #3, addToCommittee
     function addToCommittee(
         address who_
     ) external onlyCommittee {
@@ -655,7 +655,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             time: getNow(),
             vote: 0,
             executed: false,
-            operation: 2,
+            operation: CommitteeRequestType.AddToCommittee,
             data: abi.encode(who_)
         }));
 
@@ -666,7 +666,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         }
     }
 
-    // ** Operation #3, removeFromCommittee
+    // ** Operation #4, removeFromCommittee
     function removeFromCommittee(
         address who_
     ) external onlyCommittee {
@@ -677,7 +677,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             time: getNow(),
             vote: 0,
             executed: false,
-            operation: 3,
+            operation: CommitteeRequestType.RemoveFromCommittee,
             data: abi.encode(who_)
         }));
 
@@ -688,7 +688,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         }
     }
 
-    // ** Operation #4, changeCommitteeThreshold
+    // ** Operation #5, changeCommitteeThreshold
     function changeCommitteeThreshold(
         uint256 threshold_
     ) external onlyCommittee {
@@ -700,7 +700,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             time: getNow(),
             vote: 0,
             executed: false,
-            operation: 4,
+            operation: CommitteeRequestType.ChangeCommitteeThreshold,
             data: abi.encode(threshold_)
         }));
 
@@ -749,20 +749,21 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         cr.executed = true;
 
-        if (cr.operation == 0) {
+        if (cr.operation == CommitteeRequestType.Claim) {
             (uint256 amount, address receipient) = abi.decode(
                 cr.data, (uint256, address));
             _executeClaim(amount, receipient);
-        } else if (cr.operation == 1) {
+        } else if (cr.operation == CommitteeRequestType.ChangePoolManager) {
             address poolManager = abi.decode(cr.data, (address));
             _executeChangePoolManager(poolManager);
-        } else if (cr.operation == 2) {
+        } else if (cr.operation == CommitteeRequestType.AddToCommittee) {
             address newMember = abi.decode(cr.data, (address));
             _executeAddToCommittee(newMember);
-        } else if (cr.operation == 3) {
+        } else if (cr.operation == CommitteeRequestType.RemoveFromCommittee) {
             address oldMember = abi.decode(cr.data, (address));
             _executeRemoveFromCommittee(oldMember);
-        } else if (cr.operation == 4) {
+        } else if (cr.operation ==
+                CommitteeRequestType.ChangeCommitteeThreshold) {
             uint256 threshold = abi.decode(cr.data, (uint256));
             _executeChangeCommitteeThreshold(threshold);
         }

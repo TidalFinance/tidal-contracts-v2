@@ -99,11 +99,20 @@ contract PoolModel {
 
     // Committee request.
 
+    enum CommitteeRequestType {
+        None,
+        Claim,  // #1
+        ChangePoolManager,  // #2
+        AddToCommittee,  // #3
+        RemoveFromCommittee,  // #4
+        ChangeCommitteeThreshold  // #5
+    }
+
     struct CommitteeRequest {
         uint256 time;
         uint256 vote;
         bool executed;
-        uint8 operation;
+        CommitteeRequestType operation;
         bytes data;
     }
 
