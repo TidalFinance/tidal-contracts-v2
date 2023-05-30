@@ -43,6 +43,11 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         poolManager = poolManager_;
         for (uint256 i = 0; i < committeeMembers_.length; ++i) {
+            for (uint256 j = i + 1; j < committeeMembers_.length; ++j) {
+                require(committeeMembers_[i] != committeeMembers_[j],
+                        "Duplicated committee members");
+            }
+
             address member = committeeMembers_[i];
             committeeArray.push(member);
             committeeIndexPlusOne[member] = committeeArray.length;
