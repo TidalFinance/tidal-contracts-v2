@@ -138,7 +138,7 @@ contract PoolModel {
     uint256 public timeExtra;
 
     // Event aggregator.
-    address eventAggregator;
+    address public eventAggregator;
 
     // This is a storage gap in case more state variables will be added
     // in the future.

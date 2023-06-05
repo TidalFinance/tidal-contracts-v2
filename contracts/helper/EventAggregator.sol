@@ -80,6 +80,7 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
 
     event Claim(
         address indexed pool_,
+        uint256 indexed requestIndex_,
         uint256 policyIndex_,
         uint256 amount_,
         address receipient_
@@ -87,21 +88,25 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
 
     event ChangePoolManager(
         address indexed pool_,
+        uint256 indexed requestIndex_,
         address poolManager_
     );
 
     event AddToCommittee(
         address indexed pool_,
+        uint256 indexed requestIndex_,
         address who_
     );
 
     event RemoveFromCommittee(
         address indexed pool_,
+        uint256 indexed requestIndex_,
         address who_
     );
 
     event ChangeCommitteeThreshold(
         address indexed pool_,
+        uint256 indexed requestIndex_,
         uint256 threshold_
     );
 
@@ -229,12 +234,14 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
     }
 
     function claim(
+        uint256 requestIndex_,
         uint256 policyIndex_,
         uint256 amount_,
         address receipient_
     ) external onlyPool {
         emit Claim(
             msg.sender,
+            requestIndex_,
             policyIndex_,
             amount_,
             receipient_
@@ -242,31 +249,45 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
     }
 
     function changePoolManager(
+        uint256 requestIndex_,
         address poolManager_
     ) external onlyPool {
         emit ChangePoolManager(
             msg.sender,
+            requestIndex_,
             poolManager_
         );
     }
 
-    function addToCommittee(address who_) external onlyPool {
+    function addToCommittee(
+        uint256 requestIndex_,
+        address who_
+    ) external onlyPool {
         emit AddToCommittee(
             msg.sender,
+            requestIndex_,
             who_
         );
     }
 
-    function removeFromCommittee(address who_) external onlyPool {
+    function removeFromCommittee(
+        uint256 requestIndex_,
+        address who_
+    ) external onlyPool {
         emit RemoveFromCommittee(
             msg.sender,
+            requestIndex_,
             who_
         );
     }
 
-    function changeCommitteeThreshold(uint256 threshold_) external onlyPool {
+    function changeCommitteeThreshold(
+        uint256 requestIndex_,
+        uint256 threshold_
+    ) external onlyPool {
         emit ChangeCommitteeThreshold(
             msg.sender,
+            requestIndex_,
             threshold_
         );
     }

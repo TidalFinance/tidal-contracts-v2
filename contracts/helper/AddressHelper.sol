@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IPool {
-    function admin() external view returns(address);
+    function poolManager() external view returns(address);
     function committeeIndexPlusOne(address who_) external view returns(uint256);
 }
 
@@ -24,7 +24,7 @@ contract AddressHelper is Ownable {
   ) external view returns(address pool_, uint256 role_) {
       for (uint256 i = 0; i < poolArray.length; ++i) {
           IPool pool = IPool(poolArray[i]);
-          if (pool.admin() == who_) {
+          if (pool.poolManager() == who_) {
               return (poolArray[i], 0);
           } else {
               uint256 indexPlusOne = pool.committeeIndexPlusOne(who_);

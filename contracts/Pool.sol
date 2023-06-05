@@ -648,6 +648,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).claim(
+                committeeRequestArray.length - 1,
                 policyIndex_,
                 amount_,
                 receipient_
@@ -669,6 +670,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).changePoolManager(
+                committeeRequestArray.length - 1,
                 poolManager_
             );
         }
@@ -690,6 +692,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).addToCommittee(
+                committeeRequestArray.length - 1,
                 who_
             );
         }
@@ -712,6 +715,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).removeFromCommittee(
+                committeeRequestArray.length - 1,
                 who_
             );
         }
@@ -735,6 +739,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).changeCommitteeThreshold(
+                committeeRequestArray.length - 1,
                 threshold_
             );
         }
