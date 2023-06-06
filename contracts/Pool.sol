@@ -20,22 +20,18 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     uint256 constant RATIO_BASE = 1e6;
     uint256 constant TIME_OFFSET = 4 days;
 
-    constructor(bool isTest_) {
-        if (!isTest_) {
-            _disableInitializers();
-        }
+    constructor() {
+        _disableInitializers();
     }
 
     function initialize(
         address baseToken_,
         address tidalToken_,
-        bool isTest_,
         address poolManager_,
         address[] calldata committeeMembers_
     ) public initializer {
         baseToken = baseToken_;
         tidalToken = tidalToken_;
-        isTest = isTest_;
         committeeThreshold = 2;
 
         require(poolManager_ != address(0), "Empty poolManager");
@@ -59,28 +55,18 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         _;
     }
 
-    modifier onlyTest() {
-        require(isTest, "Only enabled in test environment");
-        _;
-    }
-
     modifier onlyCommittee() {
         require(committeeIndexPlusOne[_msgSender()] > 0, "Only committee");
         _;
     }
 
-    // ** Time related functions.
-
-    function setTimeExtra(uint256 timeExtra_) external onlyTest {
-        timeExtra = timeExtra_;
-    }
 
     function getCurrentWeek() public view returns(uint256) {
-        return (block.timestamp + TIME_OFFSET + timeExtra) / (7 days);
+        return (block.timestamp + TIME_OFFSET) / (7 days);
     }
 
     function getNow() public view returns(uint256) {
-        return block.timestamp + timeExtra;
+        return block.timestamp;
     }
 
     function getWeekFromTime(uint256 time_) public pure returns(uint256) {

@@ -2,7 +2,6 @@
 pragma solidity 0.8.20;
 
 contract PoolModel {
-    bool public isTest;
 
     address public baseToken;
     address public tidalToken;
@@ -133,9 +132,6 @@ contract PoolModel {
     mapping(address => uint256) public committeeIndexPlusOne;
     address[] public committeeArray;
     uint256 public committeeThreshold;
-
-    // Time control.
-    uint256 public timeExtra;
 
     // Event aggregator.
     address public eventAggregator;
