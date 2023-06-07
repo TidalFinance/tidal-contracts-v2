@@ -425,4 +425,74 @@ contract('Pool', ([
         const threshold = await this.Pool.committeeThreshold();
         assert.equal(threshold, 3);
     });
+
+    it('tidal rewards 0', async () => {
+        const currentWeek = +(await this.Pool.getCurrentWeek()).valueOf();
+
+        // In week0, seller0 deposits 200 USDC.
+        await this.USDC.approve(
+            this.Pool.address, decToHex(200), {from: seller0});
+        await this.Pool.deposit(decToHex(200), {from: seller0});
+
+        // Add 1000 TIDAL
+        await this.Tidal.approve(
+            this.Pool.address, decToHex(1000), {from: owner});
+        await this.Pool.addTidal(decToHex(1000), {from: owner});
+
+        // *** Move to week1.
+        await this.Pool.setTimeExtra(3600 * 24 * 7);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
+
+        // In week1, seller0 deposits 100 USDC.
+        await this.USDC.approve(
+            this.Pool.address, decToHex(100), {from: seller0});
+        await this.Pool.deposit(decToHex(100), {from: seller0});
+
+        // Withdraw tidal.
+        await this.Pool.withdrawTidal({from: seller0});
+
+        // seller0 should have 1000 TIDAL now.
+        const tidalAmount = +(await this.Tidal.balanceOf(seller0)).valueOf();
+        assert.isTrue(Math.abs(tidalAmount - 1000e18) < this.MIN_ERROR);
+    });
+
+    it('tidal rewards 1', async () => {
+        const currentWeek = +(await this.Pool.getCurrentWeek()).valueOf();
+
+        // In week0, seller0 deposits 200 USDC.
+        await this.USDC.approve(
+            this.Pool.address, decToHex(200), {from: seller0});
+        await this.Pool.deposit(decToHex(200), {from: seller0});
+
+        // Add 1000 TIDAL
+        await this.Tidal.approve(
+            this.Pool.address, decToHex(1000), {from: owner});
+        await this.Pool.addTidal(decToHex(1000), {from: owner});
+
+        // *** Move to week1.
+        await this.Pool.setTimeExtra(3600 * 24 * 7);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
+
+        // Withdraw tidal.
+        await this.Pool.withdrawTidal({from: seller0});
+
+        // *** Move to week2.
+        await this.Pool.setTimeExtra(3600 * 24 * 14);
+        await this.Pool.addPremium(0, {from: anyone});
+        await this.Pool.addPremium(1, {from: anyone});
+
+        // In week2, seller0 deposits 100 USDC.
+        await this.USDC.approve(
+            this.Pool.address, decToHex(100), {from: seller0});
+        await this.Pool.deposit(decToHex(100), {from: seller0});
+
+        // Withdraw tidal (again).
+        await this.Pool.withdrawTidal({from: seller0});
+
+        // seller0 should have 1000 TIDAL now.
+        const tidalAmount = +(await this.Tidal.balanceOf(seller0)).valueOf();
+        assert.isTrue(Math.abs(tidalAmount - 1000e18) < this.MIN_ERROR);
+    });
 });
