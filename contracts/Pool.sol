@@ -643,7 +643,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             vote: 0,
             executed: false,
             operation: CommitteeRequestType.Claim,
-            data: abi.encode(amount_, receipient_)
+            data: abi.encode(policyIndex_, amount_, receipient_)
         }));
 
         if (eventAggregator != address(0)) {
@@ -788,8 +788,8 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         cr.executed = true;
 
         if (cr.operation == CommitteeRequestType.Claim) {
-            (uint256 amount, address receipient) = abi.decode(
-                cr.data, (uint256, address));
+            (, uint256 amount, address receipient) = abi.decode(
+                cr.data, (uint256, uint256, address));
             _executeClaim(amount, receipient);
         } else if (cr.operation == CommitteeRequestType.ChangePoolManager) {
             address poolManager = abi.decode(cr.data, (address));
@@ -864,23 +864,27 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     function getCommitteeRequestArray(
         uint256 limit_,
         uint256 offset_
-    ) external view noReenterView returns(CommitteeRequest[] memory) {
+    ) external view noReenterView returns(CommitteeRequest[] memory, uint256[] memory) {
         if (committeeRequestArray.length <= offset_) {
-            return new CommitteeRequest[](0);
+            return (new CommitteeRequest[](0), new uint256[](0));
         }
 
         uint256 leftSideOffset = committeeRequestArray.length - offset_;
         CommitteeRequest[] memory result =
             new CommitteeRequest[](
                 leftSideOffset < limit_ ? leftSideOffset : limit_);
+        uint256[] memory indexArray =
+            new uint256[](
+                leftSideOffset < limit_ ? leftSideOffset : limit_);
 
         uint256 i = 0;
         while (i < limit_ && leftSideOffset > 0) {
             leftSideOffset -= 1;
             result[i] = committeeRequestArray[leftSideOffset];
+            indexArray[i] = leftSideOffset;
             i += 1;
         }
 
-        return result;
+        return (result, indexArray);
     }
 }
