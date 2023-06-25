@@ -60,3 +60,5 @@ Every Pool will be configed differently depending on the Pool admin's requiremen
 Whenever a new Pool is needed, just deploy a new proxy of the Pool.
 
 We use "EventAggregator" to aggregate all the events from all Pools.
+
+Also, there is a branch called "without-test". We will never merge this branch to "main", but will use it for production deployment. Whenever the "main" branch has new updates, the "without-test" branch will pickup the changes.

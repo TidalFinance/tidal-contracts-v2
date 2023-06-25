@@ -123,7 +123,7 @@ contract PoolModel {
     CommitteeRequest[] public committeeRequestArray;
 
     // Vote.
-    mapping(address => mapping(uint256 => bool)) committeeVote;
+    mapping(address => mapping(uint256 => bool)) public committeeVote;
 
     // Access control.
 
