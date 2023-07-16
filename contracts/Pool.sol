@@ -262,6 +262,17 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         return total;
     }
 
+    function getTotalMaxCapacity() external view noReenterView returns(uint256) {
+        uint256 total = 0;
+        for (uint256 i = 0; i < policyArray.length; ++i) {
+            uint256 amount = poolInfo.amountPerShare * (
+                poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS;
+            total += amount * RATIO_BASE / policyArray[i].collateralRatio;
+        }
+
+        return total;
+    }
+
     function getUserBaseAmount(address who_) external view noReenterView returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
         return poolInfo.amountPerShare * userInfo.share / SHARE_UNITS;
