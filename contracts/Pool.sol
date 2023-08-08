@@ -248,6 +248,17 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         return total;
     }
 
+    function getTotalMaxCapacity() external view noReenterView returns(uint256) {
+        uint256 total = 0;
+        for (uint256 i = 0; i < policyArray.length; ++i) {
+            uint256 amount = poolInfo.amountPerShare * (
+                poolInfo.totalShare - poolInfo.pendingWithdrawShare) / SHARE_UNITS;
+            total += amount * RATIO_BASE / policyArray[i].collateralRatio;
+        }
+
+        return total;
+    }
+
     function getUserBaseAmount(address who_) external view noReenterView returns(uint256) {
         UserInfo storage userInfo = userInfoMap[who_];
         return poolInfo.amountPerShare * userInfo.share / SHARE_UNITS;
@@ -339,6 +350,15 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         uint256 fee1 = totalIncome * managementFee1 / RATIO_BASE;
         uint256 fee2 = totalIncome * managementFee2 / RATIO_BASE;
         uint256 realIncome = totalIncome - fee1 - fee2;
+
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).addPremium(
+                policyIndex_,
+                week,
+                poolInfo.amountPerShare,
+                realIncome * SHARE_UNITS / poolInfo.totalShare
+            );
+        }
 
         poolInfo.amountPerShare +=
             realIncome * SHARE_UNITS / poolInfo.totalShare;
@@ -576,6 +596,16 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     function addTidal(uint256 amount_) external noReenter {
         IERC20Upgradeable(tidalToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
+
+        if (eventAggregator != address(0)) {
+            uint256 week = getCurrentWeek();
+
+            IEventAggregator(eventAggregator).addTidal(
+                week,
+                poolInfo.accTidalPerShare,
+                amount_ * SHARE_UNITS / poolInfo.totalShare
+            );
+        }
 
         poolInfo.accTidalPerShare +=
             amount_ * SHARE_UNITS / poolInfo.totalShare;

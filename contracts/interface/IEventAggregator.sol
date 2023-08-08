@@ -43,11 +43,24 @@ interface IEventAggregator {
         bool succeeded_
     ) external;
 
+    function addPremium(
+        uint256 policyIndex_,
+        uint256 week_,
+        uint256 amountPerShareOld_,
+        uint256 amountPerShareDelta_
+    ) external;
+
     function refund(
         uint256 policyIndex_,
         uint256 week_,
         address who_,
         uint256 amount_
+    ) external;
+
+    function addTidal(
+        uint256 week_,
+        uint256 accTidalPerShareOld_,
+        uint256 accTidalPerShareDelta_
     ) external;
 
     function claim(
