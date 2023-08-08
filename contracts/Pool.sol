@@ -19,6 +19,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     uint256 constant VOTE_EXPIRATION = 3 days;
     uint256 constant RATIO_BASE = 1e6;
     uint256 constant TIME_OFFSET = 4 days;
+    address constant ETH_PLACEHOLDER = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     constructor() {
         _disableInitializers();
@@ -274,7 +275,7 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         uint256 fromWeek_,
         uint256 toWeek_,
         string calldata notes_
-    ) external noReenter {
+    ) external noReenter payable {
         require(enabled, "Not enabled");
 
         require(toWeek_ > fromWeek_, "Not enough weeks");
@@ -305,8 +306,12 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             entry.refunded = false;
         }
 
-        IERC20Upgradeable(baseToken).safeTransferFrom(
-            _msgSender(), address(this), allPremium);
+        if (baseToken == ETH_PLACEHOLDER) {
+            require(msg.value >= allPremium, "Not enough ETH amount");
+        } else {
+            IERC20Upgradeable(baseToken).safeTransferFrom(
+                _msgSender(), address(this), allPremium);
+        }
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).buy(
@@ -379,7 +384,11 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             poolManagerInfo.share / SHARE_UNITS;
 
         // Distributes fee2.
-        IERC20Upgradeable(baseToken).safeTransfer(poolManager, fee2);
+        if (baseToken == ETH_PLACEHOLDER) {
+            payable(poolManager).transfer(fee2);
+        } else {
+            IERC20Upgradeable(baseToken).safeTransfer(poolManager, fee2);
+        }
 
         incomeMap[policyIndex_][week] = 0;
     }
@@ -403,7 +412,11 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
             (coverage.premium - amountToRefund) / coverage.premium;
         coverage.refunded = true;
 
-        IERC20Upgradeable(baseToken).safeTransfer(who_, amountToRefund);
+        if (baseToken == ETH_PLACEHOLDER) {
+            payable(who_).transfer(amountToRefund);
+        } else {
+            IERC20Upgradeable(baseToken).safeTransfer(who_, amountToRefund);
+        }
 
         if (eventAggregator != address(0)) {
             IEventAggregator(eventAggregator).refund(
@@ -419,13 +432,17 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     // to the pool.
     function deposit(
         uint256 amount_
-    ) external noReenter {
+    ) external noReenter payable {
         require(enabled, "Not enabled");
 
         require(amount_ >= minimumDepositAmount, "Less than minimum");
 
-        IERC20Upgradeable(baseToken).safeTransferFrom(
-            _msgSender(), address(this), amount_);
+        if (baseToken == ETH_PLACEHOLDER) {
+            require(msg.value >= amount_, "Not enough ETH amount");
+        } else {
+            IERC20Upgradeable(baseToken).safeTransferFrom(
+                _msgSender(), address(this), amount_);
+        }
 
         UserInfo storage userInfo = userInfoMap[_msgSender()];
 
@@ -563,7 +580,13 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
 
             // A withdrawFee goes to everyone.
             uint256 fee = amount * withdrawFee / RATIO_BASE;
-            IERC20Upgradeable(baseToken).safeTransfer(who_, amount - fee);
+
+            if (baseToken == ETH_PLACEHOLDER) {
+                payable(who_).transfer(amount - fee);
+            } else {
+                IERC20Upgradeable(baseToken).safeTransfer(who_, amount - fee);
+            }
+
             poolInfo.amountPerShare += fee * SHARE_UNITS / poolInfo.totalShare;
 
             request.succeeded = true;
@@ -835,7 +858,11 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         uint256 amount_,
         address receipient_
     ) private {
-        IERC20Upgradeable(baseToken).safeTransfer(receipient_, amount_);
+        if (baseToken == ETH_PLACEHOLDER) {
+            payable(receipient_).transfer(amount_);
+        } else {
+            IERC20Upgradeable(baseToken).safeTransfer(receipient_, amount_);
+        }
 
         poolInfo.amountPerShare -=
             amount_ * SHARE_UNITS / poolInfo.totalShare;
