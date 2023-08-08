@@ -365,6 +365,15 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
         uint256 fee2 = totalIncome * managementFee2 / RATIO_BASE;
         uint256 realIncome = totalIncome - fee1 - fee2;
 
+        if (eventAggregator != address(0)) {
+            IEventAggregator(eventAggregator).addPremium(
+                policyIndex_,
+                week,
+                poolInfo.amountPerShare,
+                realIncome * SHARE_UNITS / poolInfo.totalShare
+            );
+        }
+
         poolInfo.amountPerShare +=
             realIncome * SHARE_UNITS / poolInfo.totalShare;
 
@@ -601,6 +610,16 @@ contract Pool is Initializable, NonReentrancy, ContextUpgradeable, PoolModel {
     function addTidal(uint256 amount_) external noReenter {
         IERC20Upgradeable(tidalToken).safeTransferFrom(
             _msgSender(), address(this), amount_);
+
+        if (eventAggregator != address(0)) {
+            uint256 week = getCurrentWeek();
+
+            IEventAggregator(eventAggregator).addTidal(
+                week,
+                poolInfo.accTidalPerShare,
+                amount_ * SHARE_UNITS / poolInfo.totalShare
+            );
+        }
 
         poolInfo.accTidalPerShare +=
             amount_ * SHARE_UNITS / poolInfo.totalShare;

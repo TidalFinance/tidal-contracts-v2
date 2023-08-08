@@ -69,6 +69,14 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         bool succeeded_
     );
 
+    event AddPremium(
+        address indexed pool_,
+        uint256 indexed policyIndex_,
+        uint256 indexed week_,
+        uint256 amountPerShareOld_,
+        uint256 amountPerShareDelta_
+    );
+
     // At most 3 indexed arguments is allowed by solidity
     event Refund(
         address indexed pool_,
@@ -76,6 +84,13 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         uint256 indexed week_,
         address who_,
         uint256 amount_
+    );
+
+    event AddTidal(
+        address indexed pool_,
+        uint256 indexed week_,
+        uint256 accTidalPerShareOld_,
+        uint256 accTidalPerShareDelta_
     );
 
     event Claim(
@@ -218,6 +233,21 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
         );
     }
 
+    function addPremium(
+        uint256 policyIndex_,
+        uint256 week_,
+        uint256 amountPerShareOld_,
+        uint256 amountPerShareDelta_
+    ) external onlyPool {
+        emit AddPremium(
+            msg.sender,
+            policyIndex_,
+            week_,
+            amountPerShareOld_,
+            amountPerShareDelta_
+        );
+    }
+
     function refund(
         uint256 policyIndex_,
         uint256 week_,
@@ -230,6 +260,19 @@ contract EventAggregator is IEventAggregator, Initializable, OwnableUpgradeable 
             week_,
             who_,
             amount_
+        );
+    }
+
+    function addTidal(
+        uint256 week_,
+        uint256 accTidalPerShareOld_,
+        uint256 accTidalPerShareDelta_
+    ) external onlyPool {
+        emit AddTidal(
+            msg.sender,
+            week_,
+            accTidalPerShareOld_,
+            accTidalPerShareDelta_
         );
     }
 
